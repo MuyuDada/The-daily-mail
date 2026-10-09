@@ -41,7 +41,7 @@ jobs:
           START_DAY: ${{ secrets.START_DAY }}
           MAIL_FROM_NAME: ${{ secrets.MAIL_FROM_NAME }}
           MAIL_SUBJECT: ${{ secrets.MAIL_SUBJECT }}
-          # TA 那边的天气（不配则用默认：涞源 101090209）
+          # TA 那边的天气（不配则用默认：盐城 101190701）
           WEATHER_LOCATION_TA: ${{ secrets.WEATHER_LOCATION_TA }}
           MAIL_CITY_TA: ${{ secrets.MAIL_CITY_TA }}
           MAIL_LOVE_NAME: ${{ secrets.MAIL_LOVE_NAME }}

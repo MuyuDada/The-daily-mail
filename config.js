@@ -7,19 +7,22 @@
 //   MAIL_USER=muyu_dada@qq.com
 //   MAIL_PASS=你的SMTP授权码
 //   WEATHER_KEY=你的和风天气key
-//   WEATHER_LOCATION=101190701      # 「我」的城市 LocationID（盐城）
+//   WEATHER_LOCATION=101090209      # 默认「我」的城市 LocationID（涞源）
+//   MAIL_CITY=涞源                   # 可选：默认「我」的城市名，留空自动反查
 //   TIANXING_KEY=你的天行数据key
 //   START_DAY=2026-10-01
-//   WEATHER_LOCATION_TA=101090209   # 可选：「TA」默认城市的 LocationID（涞源），填 off 就整块不显示
-//   MAIL_CITY_TA=涞源                # 可选：「TA」默认城市名
+//   WEATHER_LOCATION_TA=101190701   # 默认「TA」城市 LocationID（盐城），填 off 就整块不显示
+//   MAIL_CITY_TA=盐城                # 可选：默认「TA」城市名
 //   MAIL_LOVE_NAME=宝贝              # 可选：土味情话里 XXX 占位符的替换词
 //   MAIL_THEME=                     # 可选：固定卡片配色（12 套，见 themes.js）；留空则每天轮换
 //
 // 收件人（MAIL_TO）：可以写多个，用逗号或分号隔开，就会分别单独发送（互相看不到对方地址）。
-// 每个收件人可以带自己的「TA 城市」，格式是 邮箱|城市名|LocationID，城市名和 ID 都可省略：
-//   MAIL_TO=2756390658@qq.com|涞源|101090209;other@qq.com|北京|101010100
-//   MAIL_TO=2756390658@qq.com,other@qq.com          # 只写邮箱，就用上面的默认 TA 城市
-//   MAIL_TO=2756390658@qq.com|101010100             # 只给 ID，城市名自动反查
+// 每人一条，格式是 邮箱|我的城市名|我的LocationID|TA的城市名|TA的LocationID，后面的段都可以省略：
+//   MAIL_TO=2756390658@qq.com|涞源|101090209;2036781684@qq.com|盐城|101190701
+//       → 只有两个人时会自动配对：第一个人左边是自己的涞源、右边是对方的盐城，第二个人反过来
+//   MAIL_TO=a@qq.com|涞源|101090209|北京|101010100   # 显式指定 TA 是谁
+//   MAIL_TO=a@qq.com,b@qq.com                        # 只写邮箱，都用上面的默认城市
+//   MAIL_TO=a@qq.com|101010100                       # 只给 ID，城市名自动反查
 
 const fs = require('fs');
 const path = require('path');
@@ -66,41 +69,75 @@ if (missing.length) {
   );
 }
 
-// 「TA」默认城市（收件人没写自己那份时用这个）
-const defaultTaLoction =
-  env.WEATHER_LOCATION_TA === 'off' ? '' : env.WEATHER_LOCATION_TA || '101090209';
-const defaultTaCity = env.MAIL_CITY_TA || '涞源';
+// 默认的「我」和「TA」城市（收件人没写自己那份时才用）
+const taOff = env.WEATHER_LOCATION_TA === 'off';
+const defaultMyLocation = env.WEATHER_LOCATION || '101090209';
+const defaultTaLoction = taOff ? '' : env.WEATHER_LOCATION_TA || '101190701';
+const defaultTaCity = env.MAIL_CITY_TA || '盐城';
 
 /**
  * 解析收件人列表。
- * MAIL_TO 支持多个收件人（逗号或分号分隔），每人一条 邮箱|城市名|LocationID：
- *   a@qq.com|涞源|101090209;b@qq.com|北京|101010100
- *   a@qq.com,b@qq.com            → 都用默认 TA 城市
- *   a@qq.com|101010100           → 只给 ID，城市名留空由程序反查
+ * MAIL_TO 支持多个收件人（逗号或分号分隔），每人一条：
+ *   邮箱|我的城市名|我的LocationID|TA的城市名|TA的LocationID
+ *
+ * 后面的段都可以省略：
+ *   a@qq.com|涞源|101090209;b@qq.com|盐城|101190701
+ *       → 只有两个人时会自动配对：a 看到自己(涞源) + 对方(盐城)，b 反过来
+ *   a@qq.com|涞源|101090209|北京|101010100
+ *       → 显式指定 TA 是谁
+ *   a@qq.com|101010100
+ *       → 只给 ID，城市名自动反查
  */
 function parseRecipients(raw) {
-  return String(raw)
+  const people = String(raw)
     .split(/[,;，；]/)
     .map((chunk) => chunk.trim())
     .filter(Boolean)
     .map((chunk) => {
-      const [mail, second, third] = chunk.split('|').map((s) => (s || '').trim());
-      // 第二段是纯数字（或 9 位以上数字）就当成 LocationID，否则当成城市名
-      let taCity = '';
-      let taLocation = '';
-      if (second) {
-        if (/^\d+$/.test(second)) taLocation = second;
-        else taCity = second;
+      const [mail, p2, p3, p4, p5] = chunk.split('|').map((s) => (s || '').trim());
+
+      // 自己的城市：第二段是纯数字就当成 LocationID，否则当成城市名
+      let myCity = '';
+      let myLocation = '';
+      if (p2) {
+        if (/^\d+$/.test(p2)) myLocation = p2;
+        else myCity = p2;
       }
-      if (third) taLocation = third;
+      if (p3) myLocation = p3;
+
+      // TA 的城市
+      let taCity = p4 || '';
+      let taLocation = '';
+      if (p5) taLocation = p5;
 
       return {
         to: mail,
-        taLocation: taLocation || defaultTaLoction,
-        taCity: taCity || (taLocation ? '' : defaultTaCity),
+        myCity,
+        myLocation,
+        taCity,
+        taLocation,
+        hasTa: Boolean(p4 || p5),
       };
     })
     .filter((r) => r.to);
+
+  // 只有两个人、又都没显式写 TA 的时候，自动把对方当成 TA
+  if (people.length === 2 && !taOff) {
+    for (const p of people) {
+      if (p.hasTa) continue;
+      const other = people.find((q) => q !== p);
+      p.taLocation = other.myLocation || defaultTaLoction;
+      p.taCity = other.myCity || '';
+    }
+  }
+
+  return people.map((p) => ({
+    to: p.to,
+    myLocation: p.myLocation || defaultMyLocation,
+    myCity: p.myCity,
+    taLocation: p.taLocation || defaultTaLoction,
+    taCity: p.taCity || (p.taLocation ? '' : defaultTaCity),
+  }));
 }
 
 const recipients = parseRecipients(env.MAIL_TO);
@@ -111,17 +148,16 @@ module.exports = {
   user: env.MAIL_USER, // 发送者邮箱
   pass: env.MAIL_PASS, // 发送者邮箱SMTP协议密码（授权码）
   to: recipients[0].to, // 兼容旧用法：第一个收件人
-  recipients, // 全部收件人，每项 { to, taLocation, taCity }
+  recipients, // 全部收件人，每项 { to, myLocation, myCity, taLocation, taCity }
   weatherKey: env.WEATHER_KEY, // 和风天气key
-  location: env.WEATHER_LOCATION || '101190701', // 「我」的和风 LocationID（盐城）；注意只认 ID，不能填中文城市名
+  location: defaultMyLocation, // 默认的「我」LocationID（涞源）；注意只认 ID，不能填中文城市名
   type: env.WEATHER_INDICES_TYPE || '1,3,9', // 和风天气-生活指数type
   tianXingKey: env.TIANXING_KEY, // 天行数据的key
   startDay: env.START_DAY || '2026-10-01', // 在一起的日期
-  city: env.MAIL_CITY || '', // 邮件里显示的「今日X天气」；留空则自动按 LocationID 反查城市名
+  city: env.MAIL_CITY || '', // 默认的「我」城市名；留空则自动按 LocationID 反查
   signature: env.MAIL_SIGNATURE || '爱你的小宝', // 邮件结尾落款（不含「——」）
-  // 「TA」那边的天气（只要天气情况，不带生活指数）；填 off 就整块不显示
-  taLocation: defaultTaLoction, // 「TA」默认城市的和风 LocationID（涞源）
-  taCity: defaultTaCity, // 「TA」默认城市名
+  taLocation: defaultTaLoction, // 默认的「TA」LocationID（盐城）
+  taCity: defaultTaCity, // 默认的「TA」城市名
   loveName: env.MAIL_LOVE_NAME || '宝贝', // 土味情话里 XXX 占位符的替换词
   // 卡片配色：留空则按天数每天轮换一种马卡龙色；填主题名可固定（如 薄荷绿）
   themeName: env.MAIL_THEME || '',

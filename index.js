@@ -19,7 +19,6 @@ const {
   user,
   recipients,
   weatherKey,
-  location,
   type,
   tianXingKey,
   startDay,
@@ -78,20 +77,41 @@ async function lookupCity(locationId) {
 
 async function init() {
   try {
-    // 获取天气信息
-    const weatherData = await fetchJson(
-      `https://devapi.qweather.com/v7/weather/3d?key=${weatherKey}&location=${location}`,
-      '和风天气-天气预报'
-    );
+    // 天气、生活指数、城市名都按 LocationID 缓存，同城只请求一次
+    const weatherCache = new Map();
+    const lifeCache = new Map();
+    const cityCache = new Map();
 
-    // 获取天气生活指数
-    const lifeData = await fetchJson(
-      `https://devapi.qweather.com/v7/indices/1d?key=${weatherKey}&location=${location}&type=${type}`,
-      '和风天气-生活指数'
-    );
+    /** 取某个 LocationID 的天气预报 */
+    async function getWeather(id) {
+      if (weatherCache.has(id)) return weatherCache.get(id);
+      const data = await fetchJson(
+        `https://devapi.qweather.com/v7/weather/3d?key=${weatherKey}&location=${id}`,
+        '和风天气-天气预报'
+      );
+      weatherCache.set(id, data);
+      return data;
+    }
 
-    // 城市名：配置里没写就查一次（失败不影响主流程）
-    const cityName = city || (await lookupCity(location));
+    /** 取某个 LocationID 的生活指数 */
+    async function getLife(id) {
+      if (lifeCache.has(id)) return lifeCache.get(id);
+      const data = await fetchJson(
+        `https://devapi.qweather.com/v7/indices/1d?key=${weatherKey}&location=${id}&type=${type}`,
+        '和风天气-生活指数'
+      );
+      lifeCache.set(id, data);
+      return data;
+    }
+
+    /** 按 LocationID 反查城市名（失败返回空串），同样按 ID 缓存 */
+    async function getCityName(id) {
+      if (!id) return '';
+      if (cityCache.has(id)) return cityCache.get(id);
+      const name = await lookupCity(id);
+      cityCache.set(id, name);
+      return name;
+    }
 
     // 土味情话：拿不到就整块不显示（失败不影响主流程）
     let loveWord = '';
@@ -115,26 +135,19 @@ async function init() {
       .diff(dayjs.tz(startDay, TZ).startOf('day'), 'days');
     const dateText = `${now.format('YYYY年M月D日 HH:mm')} ${WEEKDAYS[now.day()]}`;
 
-    // 「我」的天气和生活指数所有人共用，只渲染一次卡片底稿；
-    // TA 的天气按收件人各自的城市分别取（同城市只请求一次）
-    const taWeatherCache = new Map();
+    // TA 的天气拿不到不该影响整封邮件，所以单独包一层（失败记为 null）
+    const taFailed = new Set();
 
-    /** 取某个 LocationID 的 TA 天气（只保留天气情况，不带生活指数） */
+    /** 取某个 LocationID 的 TA 天气（只要天气情况，不带生活指数） */
     async function getTaWeather(id) {
-      if (!id) return null;
-      if (taWeatherCache.has(id)) return taWeatherCache.get(id);
-
-      let data = null;
+      if (!id || taFailed.has(id)) return null;
       try {
-        data = await fetchJson(
-          `https://devapi.qweather.com/v7/weather/3d?key=${weatherKey}&location=${id}`,
-          '和风天气-TA城市天气'
-        );
+        return await getWeather(id);
       } catch (e) {
         console.error(`[每日提醒] TA城市(${id})天气获取失败，已忽略：`, e.message);
+        taFailed.add(id);
+        return null;
       }
-      taWeatherCache.set(id, data);
-      return data;
     }
 
     let okCount = 0;
@@ -142,10 +155,17 @@ async function init() {
 
     for (const person of recipients) {
       try {
+        // 「我」的天气和生活指数按收件人各自的城市取
+        const weatherData = await getWeather(person.myLocation);
+        const lifeData = await getLife(person.myLocation);
+        // 自己那栏的城市名：配置里写了就用，否则按 LocationID 反查
+        const myCity =
+          person.myCity || (await getCityName(person.myLocation)) || city;
+
+        // TA 的天气：失败只是不显示这一块
         const taWeatherData = await getTaWeather(person.taLocation);
-        // 收件人没写城市名就按 TA 的 LocationID 反查
         const personTaCity =
-          person.taCity || (person.taLocation ? await lookupCity(person.taLocation) : '');
+          person.taCity || (await getCityName(person.taLocation));
 
         const content = buildContent({
           weatherData,
@@ -153,7 +173,7 @@ async function init() {
           taWeatherData,
           taCity: personTaCity,
           lovingDays,
-          city: cityName,
+          city: myCity,
           loveWord,
           signature,
           dateText,
