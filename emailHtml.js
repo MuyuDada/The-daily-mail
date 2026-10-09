@@ -35,10 +35,12 @@ function fn(c) {
       boxed ? 'background:#ffe4f0;border-radius:14px;' : ''
     }">
           <div style="font-size:15px;color:#b3456e;font-weight:bold;">${esc(head)}</div>
-          <div style="font-size:15px;color:#7d5b68;margin-top:6px;">${esc(desc)}</div>
-          <div style="font-size:20px;color:#c94f7c;font-weight:bold;margin-top:6px;">${esc(
-            icon
-          )} ${esc(min)}℃ / ${esc(max)}℃</div>
+          <div style="font-size:17px;color:#7d5b68;margin-top:6px;">${esc(
+            icon ? icon + ' ' : ''
+          )}${esc(desc)}</div>
+          <div style="font-size:19px;color:#c94f7c;font-weight:bold;margin-top:6px;">${esc(
+            min
+          )}℃ / ${esc(max)}℃</div>
           ${wind ? `<div style="font-size:14px;color:#9c7b88;margin-top:2px;">${esc(wind)}</div>` : ''}
         </td>`;
 

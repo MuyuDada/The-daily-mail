@@ -17,8 +17,8 @@ function wxCol({ head, icon, tempMin, tempMax, desc, wind, mine }) {
   return `
     <div class="wx-col${mine ? ' mine' : ''}">
       <div class="wx-city">${esc(head)}</div>
-      ${desc ? `<div class="wx-desc">${esc(desc)}</div>` : ''}
-      <div class="wx-temp">${esc(icon)} ${esc(tempMin)}℃ / ${esc(tempMax)}℃</div>
+      ${desc ? `<div class="wx-desc">${esc(icon ? icon + ' ' : '')}${esc(desc)}</div>` : ''}
+      <div class="wx-temp">${esc(tempMin)}℃ / ${esc(tempMax)}℃</div>
       ${wind ? `<div class="wx-wind">${esc(wind)}</div>` : ''}
     </div>`;
 }
@@ -105,21 +105,21 @@ function cardHtml(c) {
     min-width: 0;
     background: rgba(255,214,231,0.78);
     border-radius: 20px;
-    padding: 20px 14px;
-    text-align: center;
+    padding: 20px 18px;
+    text-align: left;
   }
-  /* 自己那栏不加背景框 */
-  .wx-col.mine { background: transparent; }
-  .wx-city { font-size: 18px; color: #b3456e; font-weight: 700; }
+  /* 自己那栏不加背景框，也不需要内边距，好和标题左对齐 */
+  .wx-col.mine { background: transparent; padding-left: 0; padding-right: 0; }
+  .wx-city { font-size: 17px; color: #b3456e; font-weight: 700; }
   .wx-temp {
-    margin-top: 10px;
-    font-size: 28px;
+    margin-top: 8px;
+    font-size: 25px;
     color: #c94f7c;
     font-weight: 700;
     white-space: nowrap;
   }
-  .wx-desc { margin-top: 10px; font-size: 18px; color: #7d5b68; line-height: 1.5; }
-  .wx-wind { margin-top: 4px; font-size: 16px; color: #9c7b88; line-height: 1.5; }
+  .wx-desc { margin-top: 8px; font-size: 21px; color: #7d5b68; line-height: 1.5; }
+  .wx-wind { margin-top: 6px; font-size: 16px; color: #9c7b88; line-height: 1.5; }
   .life-head { margin-top: 30px; font-size: 20px; color: #b3456e; font-weight: 700; }
   .life { margin-top: 16px; }
   .life-name {
