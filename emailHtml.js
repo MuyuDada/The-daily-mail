@@ -35,7 +35,6 @@ const SWEET_PREFIX = {
 function fn({
   weatherData,
   lifeData,
-  word,
   lovingDays,
   city,
   loveWord,
@@ -85,9 +84,6 @@ function fn({
     ? `<p>每日土味情话：<br />${esc(loveWord)}</p>`
     : '';
 
-  // 每日一句同理
-  const wordBlock = word ? `<p>每日一句:<br />${esc(word)}</p>` : '';
-
   return `<!DOCTYPE html>
   <html lang="en">
     <head>
@@ -107,7 +103,6 @@ function fn({
           ${esc(wind)}
         </p>
         ${lifeLines}
-        ${wordBlock}
         ${loveBlock}
         <p>——${esc(signature)}</p>
       </div>

@@ -70,15 +70,6 @@ async function init() {
       '和风天气-生活指数'
     );
 
-    // 获取one一个文案（每日一句）
-    // 注意：新版域名 apis.tianapi.com 返回 result，旧版 api.tianapi.com/txapi 返回 newslist，两者都兼容
-    const oneData = await fetchJson(
-      `https://apis.tianapi.com/one/index?key=${tianXingKey}`,
-      '天行数据-每日一句'
-    );
-    const one = (oneData.result || (oneData.newslist || [])[0]) || {};
-    const word = one.word || '';
-
     // 城市名：配置里没写就查一次（失败不影响主流程）
     let cityName = city;
     if (!cityName) {
@@ -117,7 +108,6 @@ async function init() {
     const htmlStr = emailHtml({
       weatherData,
       lifeData,
-      word,
       lovingDays,
       city: cityName,
       loveWord,
