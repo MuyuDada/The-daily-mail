@@ -17,7 +17,7 @@ const {
   fromDisplayText,
   fromDisplaySubText,
   user,
-  to,
+  recipients,
   weatherKey,
   location,
   type,
@@ -25,8 +25,6 @@ const {
   startDay,
   city,
   signature,
-  taLocation,
-  taCity,
   loveName,
   themeName,
 } = require('./config');
@@ -63,6 +61,21 @@ async function fetchJson(url, name) {
   return data;
 }
 
+/** 按 LocationID 反查城市名（失败返回空字符串，不影响主流程） */
+async function lookupCity(locationId) {
+  try {
+    const geoData = await fetchJson(
+      `https://geoapi.qweather.com/v2/city/lookup?key=${weatherKey}&location=${locationId}`,
+      '和风天气-城市查询'
+    );
+    const first = (geoData.location || [])[0] || {};
+    return first.name || '';
+  } catch (e) {
+    console.error('[每日提醒] 城市名获取失败，已忽略：', e.message);
+    return '';
+  }
+}
+
 async function init() {
   try {
     // 获取天气信息
@@ -78,32 +91,7 @@ async function init() {
     );
 
     // 城市名：配置里没写就查一次（失败不影响主流程）
-    let cityName = city;
-    if (!cityName) {
-      try {
-        const geoData = await fetchJson(
-          `https://geoapi.qweather.com/v2/city/lookup?key=${weatherKey}&location=${location}`,
-          '和风天气-城市查询'
-        );
-        const first = (geoData.location || [])[0] || {};
-        cityName = first.name || '';
-      } catch (e) {
-        console.error('[每日提醒] 城市名获取失败，已忽略：', e.message);
-      }
-    }
-
-    // TA 那边的天气：只要天气情况，不带生活指数（失败就不显示这一块）
-    let taWeatherData = null;
-    if (taLocation) {
-      try {
-        taWeatherData = await fetchJson(
-          `https://devapi.qweather.com/v7/weather/3d?key=${weatherKey}&location=${taLocation}`,
-          '和风天气-TA城市天气'
-        );
-      } catch (e) {
-        console.error('[每日提醒] TA城市天气获取失败，已忽略：', e.message);
-      }
-    }
+    const cityName = city || (await lookupCity(location));
 
     // 土味情话：拿不到就整块不显示（失败不影响主流程）
     let loveWord = '';
@@ -127,58 +115,102 @@ async function init() {
       .diff(dayjs.tz(startDay, TZ).startOf('day'), 'days');
     const dateText = `${now.format('YYYY年M月D日 HH:mm')} ${WEEKDAYS[now.day()]}`;
 
-    // 用邮件模版生成字符串
-    const content = buildContent({
-      weatherData,
-      lifeData,
-      taWeatherData,
-      taCity,
-      lovingDays,
-      city: cityName,
-      loveWord,
-      signature,
-      dateText,
-      themeName,
-    });
+    // 「我」的天气和生活指数所有人共用，只渲染一次卡片底稿；
+    // TA 的天气按收件人各自的城市分别取（同城市只请求一次）
+    const taWeatherCache = new Map();
 
-    // 生成卡片图；失败就退回纯文字邮件，保证每天都有邮件
-    let htmlStr;
-    let attachments;
-    let cidImage = '';
-    try {
-      const png = await renderHtmlToPng(cardHtml(content), {
-        width: 720,
-        scale: 2,
-        format: 'jpeg',
-        quality: 85,
-      });
-      cidImage = 'daily-card';
-      attachments = [
-        {
-          filename: `每日提醒-${now.format('YYYY-MM-DD')}.jpg`,
-          content: png,
-          cid: cidImage,
-        },
-      ];
-      // 正文只放这张图，点开就是完整内容
-      htmlStr = `<div><img src="cid:${cidImage}" alt="每日提醒" style="width:100%;max-width:720px" /></div>`;
-    } catch (e) {
-      console.error('[每日提醒] 卡片图生成失败，改为发送文字邮件：', e.message);
-      htmlStr = emailHtml(content);
+    /** 取某个 LocationID 的 TA 天气（只保留天气情况，不带生活指数） */
+    async function getTaWeather(id) {
+      if (!id) return null;
+      if (taWeatherCache.has(id)) return taWeatherCache.get(id);
+
+      let data = null;
+      try {
+        data = await fetchJson(
+          `https://devapi.qweather.com/v7/weather/3d?key=${weatherKey}&location=${id}`,
+          '和风天气-TA城市天气'
+        );
+      } catch (e) {
+        console.error(`[每日提醒] TA城市(${id})天气获取失败，已忽略：`, e.message);
+      }
+      taWeatherCache.set(id, data);
+      return data;
     }
 
-    // 发送邮件
-    await sendEmail({
-      from: fromDisplayText,
-      to,
-      subject: fromDisplaySubText,
-      html: htmlStr,
-      attachments,
-    });
+    let okCount = 0;
+    const failed = [];
 
-    console.log(
-      `[每日提醒] 已发送至 ${to}，今天是在一起的第 ${lovingDays} 天`
-    );
+    for (const person of recipients) {
+      try {
+        const taWeatherData = await getTaWeather(person.taLocation);
+        // 收件人没写城市名就按 TA 的 LocationID 反查
+        const personTaCity =
+          person.taCity || (person.taLocation ? await lookupCity(person.taLocation) : '');
+
+        const content = buildContent({
+          weatherData,
+          lifeData,
+          taWeatherData,
+          taCity: personTaCity,
+          lovingDays,
+          city: cityName,
+          loveWord,
+          signature,
+          dateText,
+          themeName,
+        });
+
+        // 生成卡片图；失败就退回纯文字邮件，保证每天都有邮件
+        let htmlStr;
+        let attachments;
+        try {
+          const png = await renderHtmlToPng(cardHtml(content), {
+            width: 720,
+            scale: 2,
+            format: 'jpeg',
+            quality: 85,
+          });
+          attachments = [
+            {
+              filename: `每日提醒-${now.format('YYYY-MM-DD')}.jpg`,
+              content: png,
+              cid: 'daily-card',
+            },
+          ];
+          // 正文只放这张图，点开就是完整内容
+          htmlStr =
+            '<div><img src="cid:daily-card" alt="每日提醒" style="width:100%;max-width:720px" /></div>';
+        } catch (e) {
+          console.error('[每日提醒] 卡片图生成失败，改为发送文字邮件：', e.message);
+          htmlStr = emailHtml(content);
+        }
+
+        // 分别单独发送：每个人只看到自己的地址，互相不可见
+        await sendEmail({
+          from: fromDisplayText,
+          to: person.to,
+          subject: fromDisplaySubText,
+          html: htmlStr,
+          attachments,
+        });
+
+        okCount += 1;
+        console.log(
+          `[每日提醒] 已发送至 ${person.to}，今天是在一起的第 ${lovingDays} 天`
+        );
+      } catch (e) {
+        // 单个收件人失败不影响其他人
+        console.error(`[每日提醒] 发送至 ${person.to} 失败：`, e.message);
+        failed.push(`${person.to}（${e.message}）`);
+      }
+    }
+
+    if (failed.length) {
+      throw new Error(
+        `${failed.length}/${recipients.length} 个收件人发送失败：${failed.join('；')}`
+      );
+    }
+    if (!okCount) throw new Error('没有配置任何收件人（MAIL_TO 为空）');
   } catch (e) {
     // 先打印真实错误，保证 Actions 日志里能看到原因
     console.error('[每日提醒] 发送失败：', e);

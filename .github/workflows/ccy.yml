@@ -37,13 +37,15 @@ jobs:
           TIANXING_KEY: ${{ secrets.TIANXING_KEY }}
           # 以下是可选配置，不配也有默认值
           WEATHER_LOCATION: ${{ secrets.WEATHER_LOCATION }}
+          MAIL_CITY: ${{ secrets.MAIL_CITY }}
           START_DAY: ${{ secrets.START_DAY }}
           MAIL_FROM_NAME: ${{ secrets.MAIL_FROM_NAME }}
           MAIL_SUBJECT: ${{ secrets.MAIL_SUBJECT }}
-          # TA 那边的天气（不配则用默认：盐城 101190701）
+          # TA 那边的天气（不配则用默认：涞源 101090209）
           WEATHER_LOCATION_TA: ${{ secrets.WEATHER_LOCATION_TA }}
           MAIL_CITY_TA: ${{ secrets.MAIL_CITY_TA }}
           MAIL_LOVE_NAME: ${{ secrets.MAIL_LOVE_NAME }}
+          MAIL_SIGNATURE: ${{ secrets.MAIL_SIGNATURE }}
           # 卡片配色：不配则按天数每天换一种马卡龙色
           MAIL_THEME: ${{ secrets.MAIL_THEME }}
         run: npm ci && npm run server

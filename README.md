@@ -1,6 +1,6 @@
 # The-daily-mail
 
-每天早上自动发一封邮件：一张粉色卡片长图，内容包含「我们在一起的第几天」、今天的天气与生活指数、**TA 那边的天气**，以及一句土味情话。
+每天早上自动发一封邮件：一张卡片长图，内容包含「我们在一起的第几天」、今天的天气与生活指数、**TA 那边的天气**，以及一句土味情话。卡片配色每天自动换一种。
 
 数据来源：[和风天气](https://dev.qweather.com/) + [天行数据](https://www.tianapi.com/)。
 
@@ -11,12 +11,31 @@
 ```ini
 MAIL_USER=muyu_dada@qq.com          # 发送者邮箱
 MAIL_PASS=你的SMTP授权码             # QQ邮箱 → 设置 → 账户 → 开启SMTP后生成的授权码
-MAIL_TO=2756390658@qq.com           # 收件人
+MAIL_TO=2756390658@qq.com           # 收件人（支持多个，见下）
 WEATHER_KEY=你的和风天气key
-WEATHER_LOCATION=101090209          # 和风天气 LocationID，只能填数字ID，不能填中文城市名
+WEATHER_LOCATION=101190701          # 「我」的城市 LocationID，只能填数字ID，不能填中文城市名
 TIANXING_KEY=你的天行数据key
 START_DAY=2026-10-01                # 在一起的日期
 ```
+
+### 发给多个人
+
+`MAIL_TO` 可以写多个收件人，用**逗号或分号**隔开。每个人会**分别单独收到一封**邮件（互相看不到对方的地址），某个人失败也不影响其他人：
+
+```ini
+MAIL_TO=2756390658@qq.com|涞源|101090209;other@qq.com|北京|101010100
+```
+
+每个收件人的格式是 `邮箱|城市名|LocationID`，后两段都可以省略：
+
+| 写法 | 含义 |
+| --- | --- |
+| `a@qq.com` | 用默认的 TA 城市 |
+| `a@qq.com\|涞源\|101090209` | 指定这个人的 TA 城市名和 LocationID |
+| `a@qq.com\|涞源` | 只写城市名，ID 用默认的 |
+| `a@qq.com\|101010100` | 只写 ID，城市名自动反查 |
+
+> 注意：如果某个人的 TA 城市要单独指定，`MAIL_TO` 里就不能有 `|` 以外的歧义字符；分隔符是逗号/分号，所以城市名里不要带逗号。
 
 可选项（有默认值）：
 
@@ -25,12 +44,12 @@ START_DAY=2026-10-01                # 在一起的日期
 | `MAIL_FROM_NAME` | `小宝` | 收件箱展示的来件人 |
 | `MAIL_SUBJECT` | `每日提醒` | 邮件标题 |
 | `WEATHER_INDICES_TYPE` | `1,3,9` | 生活指数类型（1运动 3穿衣 9感冒） |
-| `WEATHER_LOCATION_TA` | `101190701` | TA 城市的 LocationID（盐城）；**留空则不显示这一块** |
-| `MAIL_CITY_TA` | `盐城` | TA 的城市名 |
-| `MAIL_CITY` | 自动反查 | 自己城市的显示名 |
+| `WEATHER_LOCATION_TA` | `101090209` | 「TA」默认城市的 LocationID（涞源）；**填 `off` 则不显示这一块** |
+| `MAIL_CITY_TA` | `涞源` | 「TA」默认城市名 |
+| `MAIL_CITY` | 自动反查 | 「我」的城市显示名 |
 | `MAIL_SIGNATURE` | `爱你的小宝` | 落款 |
 | `MAIL_LOVE_NAME` | `宝贝` | 土味情话里 `XXX` 占位符的替换词 |
-| `MAIL_THEME` | 每天轮换 | 固定卡片配色，可选 `蜜桃粉` `薄荷绿` `薰衣草紫` `奶油黄` `天空蓝` `蜜桃橘`；留空则按天数每天换一种 |
+| `MAIL_THEME` | 每天轮换 | 固定卡片配色，可选下面 12 个主题名；留空则按天数每天换一种 |
 
 > **怎么查 LocationID**：访问
 > `https://geoapi.qweather.com/v2/city/lookup?key=你的key&location=城市名`
@@ -41,7 +60,7 @@ START_DAY=2026-10-01                # 在一起的日期
 用本机 Chrome 的**无头模式 + DevTools 协议**整页截图，纯 Node 实现，不依赖 puppeteer：
 
 - `content.js` —— 把接口数据整理成结构化内容（邮件与图片共用，保证两边一致）
-- `themes.js` —— 6 套马卡龙配色，按天数每天轮换一种（相邻两天不重样）
+- `themes.js` —— 12 套马卡龙配色，按天数每天轮换一种（相邻两天不重样）
 - `cardHtml.js` —— 卡片模板，颜色全部取自主题
 - `render.js` —— 启动 Chrome、量高度、整页截图
 - `emailHtml.js` —— 纯文字兜底模板
@@ -56,6 +75,12 @@ START_DAY=2026-10-01                # 在一起的日期
 | `奶油黄` | 温暖明亮 |
 | `天空蓝` | 清新通透 |
 | `蜜桃橘` | 暖调活泼 |
+| `雾霾蓝` | 低饱和的灰蓝，沉静 |
+| `奶茶色` | 奶咖色，柔和耐看 |
+| `抹茶绿` | 偏黄的绿，清新自然 |
+| `莓果粉` | 比蜜桃粉更深一点，浓郁 |
+| `海洋青` | 青蓝调，清凉通透 |
+| `丁香紫` | 灰调的紫，温柔雅致 |
 
 **卡片图生成失败时会自动退回纯文字邮件**（比如没有 Chrome 的机器），保证每天都有邮件。原因会打印在日志里。
 
@@ -71,7 +96,8 @@ npm run server
 1. 把代码推送到仓库。
 2. 打开仓库 **Settings → Secrets and variables → Actions**，逐个添加：
    `MAIL_USER`、`MAIL_PASS`、`MAIL_TO`、`WEATHER_KEY`、`TIANXING_KEY`，
-   可选再加 `WEATHER_LOCATION`、`START_DAY`、`WEATHER_LOCATION_TA`、`MAIL_CITY_TA` 等。
+   可选再加 `WEATHER_LOCATION`、`MAIL_CITY`、`START_DAY`、`WEATHER_LOCATION_TA`、`MAIL_CITY_TA`、`MAIL_THEME` 等。
+   `MAIL_TO` 写多个人时，把上面那串 `邮箱|城市名|LocationID;邮箱|城市名|LocationID` 整段填进 Secret 的值里。
 3. 到 **Actions** 页面选 `ccy-helper` → **Run workflow** 手动跑一次验证。
 4. 之后每天北京时间 08:02 自动执行（cron 用的是 UTC，`02 00 * * *` = 北京 08:02）。
 
