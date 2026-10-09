@@ -29,13 +29,50 @@ function fn(c) {
     ? `<p>💌 每日土味情话：<br />${esc(content.loveWord)}</p>`
     : '';
 
-  const taBlock = content.ta
-    ? `<p>🏙️ TA那边 · ${esc(content.ta.city)}<br />
-          ${esc(content.ta.icon)} ${esc(content.ta.tempMin)}℃/${esc(
-        content.ta.tempMax
-      )}℃ ${esc(content.ta.desc)}${
-        content.ta.wind ? ` · ${esc(content.ta.wind)}` : ''
-      }</p>`
+  // 两个城市并排（邮件里用表格，兼容性最好）
+  const wxCell = (head, icon, min, max, desc, wind) =>
+    `<td width="50%" valign="top" style="padding:8px 10px;background:#ffe4f0;border-radius:14px;">
+          <div style="font-size:15px;color:#b3456e;font-weight:bold;">${esc(head)}</div>
+          <div style="font-size:20px;color:#c94f7c;font-weight:bold;margin-top:6px;">${esc(
+            icon
+          )} ${esc(min)}℃ / ${esc(max)}℃</div>
+          <div style="font-size:15px;color:#7d5b68;margin-top:6px;">${esc(desc)}</div>
+          ${wind ? `<div style="font-size:14px;color:#9c7b88;margin-top:2px;">${esc(wind)}</div>` : ''}
+        </td>`;
+
+  const wxRow = content.ta
+    ? `<table width="100%" cellpadding="0" cellspacing="0"><tr>
+          ${wxCell(
+            `📍 ${content.city}`,
+            content.icon,
+            content.tempMin,
+            content.tempMax,
+            content.weatherDesc,
+            content.wind
+          )}
+          <td width="14"></td>
+          ${wxCell(
+            `🏙️ TA · ${content.ta.city}`,
+            content.ta.icon,
+            content.ta.tempMin,
+            content.ta.tempMax,
+            content.ta.desc,
+            content.ta.wind
+          )}
+        </tr></table>`
+    : `<table width="100%" cellpadding="0" cellspacing="0"><tr>
+          ${wxCell(
+            `📍 ${content.city}`,
+            content.icon,
+            content.tempMin,
+            content.tempMax,
+            content.weatherDesc,
+            content.wind
+          )}
+        </tr></table>`;
+
+  const lifeBlock = lifeLines
+    ? `<p style="margin-top:18px;color:#b3456e;font-weight:bold;">🍀 生活指数</p>${lifeLines}`
     : '';
 
   return `<!DOCTYPE html>
@@ -45,22 +82,16 @@ function fn(c) {
       <meta http-equiv="X-UA-Compatible" content="IE=edge" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     </head>
-    <body>
+    <body style="font-family:'Microsoft YaHei','PingFang SC',sans-serif;">
       <div>
         <p>宝贝你好呀🥰</p>
         <p>我们在一起的第${esc(content.days)}天💞</p>
-        <p>
-          ${esc(content.icon)} 今日${esc(content.city)}天气:<br />
-          温度:${esc(content.tempMin)}℃/${esc(content.tempMax)}℃<br />
-          ${esc(content.weatherDesc)}${
-    content.wind ? ` · ${esc(content.wind)}` : ''
-  }
-        </p>
-        ${lifeLines}
-        ${taBlock}
+        <p style="margin-top:18px;color:#b3456e;font-weight:bold;">🌤️ 今日天气</p>
+        ${wxRow}
+        ${lifeBlock}
         ${loveBlock}
         <p>——${esc(content.signature)}</p>
-        <p>${esc(content.dateText)}</p>
+        <p style="color:#b79aa6;font-size:13px;">${esc(content.dateText)}</p>
       </div>
     </body>
   </html>

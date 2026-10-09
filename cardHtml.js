@@ -12,6 +12,17 @@ const esc = (v) => {
     .replace(/'/g, '&#39;');
 };
 
+/** 一格天气（自己的或 TA 的），两格并排 */
+function wxCol({ head, icon, tempMin, tempMax, desc, wind, mine }) {
+  return `
+    <div class="wx-col${mine ? ' mine' : ''}">
+      <div class="wx-city">${esc(head)}</div>
+      <div class="wx-temp">${esc(icon)} ${esc(tempMin)}℃ / ${esc(tempMax)}℃</div>
+      ${desc ? `<div class="wx-desc">${esc(desc)}</div>` : ''}
+      ${wind ? `<div class="wx-wind">${esc(wind)}</div>` : ''}
+    </div>`;
+}
+
 function cardHtml(c) {
   const life = (c.lifeItems || [])
     .map(
@@ -30,17 +41,25 @@ function cardHtml(c) {
        </div>`
     : '';
 
-  // TA 那边的天气：只显示天气情况，不带生活指数
-  const taBlock = c.ta
-    ? `<div class="ta">
-         <div class="ta-head">🏙️ TA那边 · ${esc(c.ta.city)}</div>
-         <div class="ta-main">${esc(c.ta.icon)} <span class="ta-temp">${esc(
-        c.ta.tempMin
-      )}℃ / ${esc(c.ta.tempMax)}℃</span></div>
-         <div class="ta-desc">${esc(c.ta.desc)}${
-        c.ta.wind ? ` · ${esc(c.ta.wind)}` : ''
-      }</div>
-       </div>`
+  // 两个城市并排：左边是自己，右边是 TA（TA 只要天气情况，不带生活指数）
+  const mineCol = wxCol({
+    head: `📍 ${c.city}`,
+    icon: c.icon,
+    tempMin: c.tempMin,
+    tempMax: c.tempMax,
+    desc: c.weatherDesc,
+    wind: c.wind,
+    mine: true,
+  });
+  const taCol = c.ta
+    ? wxCol({
+        head: `🏙️ TA · ${c.ta.city}`,
+        icon: c.ta.icon,
+        tempMin: c.ta.tempMin,
+        tempMax: c.ta.tempMax,
+        desc: c.ta.desc,
+        wind: c.ta.wind,
+      })
     : '';
 
   return `<!DOCTYPE html>
@@ -58,7 +77,7 @@ function cardHtml(c) {
   .card {
     background: rgba(255,255,255,0.82);
     border-radius: 28px;
-    padding: 40px 38px 34px;
+    padding: 40px 34px 34px;
     box-shadow: 0 10px 34px rgba(219,112,147,0.16);
   }
   .hi { font-size: 34px; color: #b3456e; font-weight: 700; letter-spacing: 1px; }
@@ -74,15 +93,34 @@ function cardHtml(c) {
     background: linear-gradient(90deg, rgba(219,112,147,0), rgba(219,112,147,0.45), rgba(219,112,147,0));
     margin: 28px 0;
   }
-  .weather-head { font-size: 22px; color: #b3456e; font-weight: 700; }
-  .temp {
-    margin-top: 14px;
-    font-size: 21px;
-    color: #7d5b68;
-    line-height: 1.9;
+  .sec-head { font-size: 22px; color: #b3456e; font-weight: 700; }
+  .wx-row {
+    display: flex;
+    gap: 14px;
+    margin-top: 16px;
+    align-items: stretch;
   }
-  .temp .big { font-size: 40px; color: #c94f7c; font-weight: 700; }
-  .life { margin-top: 18px; }
+  .wx-col {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255,214,231,0.78);
+    border-radius: 20px;
+    padding: 20px 14px;
+    text-align: center;
+  }
+  .wx-col.mine { background: rgba(255,203,224,0.92); }
+  .wx-city { font-size: 18px; color: #b3456e; font-weight: 700; }
+  .wx-temp {
+    margin-top: 10px;
+    font-size: 28px;
+    color: #c94f7c;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .wx-desc { margin-top: 10px; font-size: 18px; color: #7d5b68; line-height: 1.5; }
+  .wx-wind { margin-top: 4px; font-size: 16px; color: #9c7b88; line-height: 1.5; }
+  .life-head { margin-top: 30px; font-size: 20px; color: #b3456e; font-weight: 700; }
+  .life { margin-top: 16px; }
   .life-name {
     display: inline-block;
     font-size: 17px;
@@ -93,18 +131,8 @@ function cardHtml(c) {
     margin-bottom: 8px;
   }
   .life-text { font-size: 19px; color: #7d5b68; line-height: 1.75; }
-  .ta {
-    margin-top: 26px;
-    background: rgba(255,228,240,0.7);
-    border-radius: 20px;
-    padding: 22px 24px;
-  }
-  .ta-head { font-size: 19px; color: #c94f7c; font-weight: 700; }
-  .ta-main { margin-top: 12px; font-size: 22px; color: #7d5b68; }
-  .ta-main .ta-temp { font-size: 30px; color: #c94f7c; font-weight: 700; }
-  .ta-desc { margin-top: 8px; font-size: 19px; color: #7d5b68; }
   .love {
-    margin-top: 26px;
+    margin-top: 28px;
     background: linear-gradient(135deg, #fff0f5, #ffe0ec);
     border-radius: 20px;
     padding: 24px 26px;
@@ -133,14 +161,13 @@ function cardHtml(c) {
 
     <div class="divider"></div>
 
-    <div class="weather-head">${esc(c.icon)} 今日${esc(c.city)}天气</div>
-    <div class="temp">
-      <span class="big">${esc(c.tempMin)}℃ / ${esc(c.tempMax)}℃</span><br />
-      ${esc(c.weatherDesc)}${c.wind ? ` · ${esc(c.wind)}` : ''}
+    <div class="sec-head">🌤️ 今日天气</div>
+    <div class="wx-row">
+      ${mineCol}
+      ${taCol}
     </div>
 
-    ${life}
-    ${taBlock}
+    ${life ? `<div class="life-head">🍀 生活指数</div>${life}` : ''}
     ${loveBlock}
 
     <div class="sign">——${esc(c.signature)}</div>
