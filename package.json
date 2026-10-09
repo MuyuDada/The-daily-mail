@@ -1,12 +1,12 @@
 {
   "name": "auto-send-email",
   "version": "1.0.0",
-  "description": "定时任务 自动发邮件",
+  "description": "定时任务：每天自动发送一封天气提醒邮件（卡片长图）",
   "main": "index.js",
   "scripts": {
     "server": "node index.js"
   },
-  "author": "ccy",
+  "private": true,
   "dependencies": {
     "dayjs": "1.11.13",
     "node-fetch": "2.6.7",
