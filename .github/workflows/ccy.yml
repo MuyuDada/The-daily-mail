@@ -44,4 +44,6 @@ jobs:
           WEATHER_LOCATION_TA: ${{ secrets.WEATHER_LOCATION_TA }}
           MAIL_CITY_TA: ${{ secrets.MAIL_CITY_TA }}
           MAIL_LOVE_NAME: ${{ secrets.MAIL_LOVE_NAME }}
+          # 卡片配色：不配则按天数每天换一种马卡龙色
+          MAIL_THEME: ${{ secrets.MAIL_THEME }}
         run: npm ci && npm run server

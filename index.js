@@ -28,6 +28,7 @@ const {
   taLocation,
   taCity,
   loveName,
+  themeName,
 } = require('./config');
 
 const TZ = 'Asia/Shanghai';
@@ -137,6 +138,7 @@ async function init() {
       loveWord,
       signature,
       dateText,
+      themeName,
     });
 
     // 生成卡片图；失败就退回纯文字邮件，保证每天都有邮件

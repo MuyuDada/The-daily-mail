@@ -14,6 +14,7 @@
 //   WEATHER_LOCATION_TA=101190701   # 可选：TA 城市的 LocationID（盐城）
 //   MAIL_CITY_TA=盐城                # 可选：TA 的城市名
 //   MAIL_LOVE_NAME=宝贝              # 可选：土味情话里 XXX 占位符的替换词
+//   MAIL_THEME=                     # 可选：固定卡片配色（蜜桃粉/薄荷绿/薰衣草紫/奶油黄/天空蓝/蜜桃橘）；留空则每天随机轮换
 
 const fs = require('fs');
 const path = require('path');
@@ -80,4 +81,6 @@ module.exports = {
       : env.WEATHER_LOCATION_TA || '101190701', // TA 城市的和风 LocationID（盐城）
   taCity: env.MAIL_CITY_TA || '盐城', // TA 的城市名
   loveName: env.MAIL_LOVE_NAME || '宝贝', // 土味情话里 XXX 占位符的替换词
+  // 卡片配色：留空则按天数每天轮换一种马卡龙色；填主题名可固定（如 薄荷绿）
+  themeName: env.MAIL_THEME || '',
 };

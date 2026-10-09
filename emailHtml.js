@@ -1,4 +1,6 @@
 /** HTML 转义，避免第三方文案里的 & < > " 破坏邮件结构 */
+const { DEFAULT_THEME } = require('./themes');
+
 function esc(value) {
   if (value === undefined || value === null) return '';
   return String(value)
@@ -15,6 +17,7 @@ function esc(value) {
  */
 function fn(c) {
   const content = c || {};
+  const t = content.theme || DEFAULT_THEME;
 
   const lifeLines = (content.lifeItems || [])
     .map(
@@ -32,16 +35,16 @@ function fn(c) {
   // 两个城市并排（邮件里用表格，兼容性最好）；自己那栏不加背景框
   const wxCell = (head, icon, min, max, desc, wind, boxed) =>
     `<td width="50%" valign="top" style="padding:8px 10px;${
-      boxed ? 'background:#ffe4f0;border-radius:14px;' : ''
+      boxed ? `background:${t.colBg};border-radius:14px;` : ''
     }">
-          <div style="font-size:15px;color:#b3456e;font-weight:bold;">${esc(head)}</div>
-          <div style="font-size:17px;color:#7d5b68;margin-top:6px;">${esc(
+          <div style="font-size:15px;color:${t.accentDark};font-weight:bold;">${esc(head)}</div>
+          <div style="font-size:17px;color:${t.body};margin-top:6px;">${esc(
             icon ? icon + ' ' : ''
           )}${esc(desc)}</div>
-          <div style="font-size:19px;color:#c94f7c;font-weight:bold;margin-top:6px;">${esc(
+          <div style="font-size:19px;color:${t.accent};font-weight:bold;margin-top:6px;">${esc(
             min
           )}℃ / ${esc(max)}℃</div>
-          ${wind ? `<div style="font-size:14px;color:#9c7b88;margin-top:2px;">${esc(wind)}</div>` : ''}
+          ${wind ? `<div style="font-size:14px;color:${t.muted};margin-top:2px;">${esc(wind)}</div>` : ''}
         </td>`;
 
   const wxRow = content.ta
@@ -79,7 +82,7 @@ function fn(c) {
         </tr></table>`;
 
   const lifeBlock = lifeLines
-    ? `<p style="margin-top:18px;color:#b3456e;font-weight:bold;">🍀 生活指数</p>${lifeLines}`
+    ? `<p style="margin-top:18px;color:${t.accentDark};font-weight:bold;">🍀 生活指数</p>${lifeLines}`
     : '';
 
   return `<!DOCTYPE html>
@@ -93,12 +96,12 @@ function fn(c) {
       <div>
         <p>宝贝你好呀🥰</p>
         <p>我们在一起的第${esc(content.days)}天💞</p>
-        <p style="margin-top:18px;color:#b3456e;font-weight:bold;">🌤️ 今日天气</p>
+        <p style="margin-top:18px;color:${t.accentDark};font-weight:bold;">🌤️ 今日天气</p>
         ${wxRow}
         ${lifeBlock}
         ${loveBlock}
         <p>——${esc(content.signature)}</p>
-        <p style="color:#b79aa6;font-size:13px;">${esc(content.dateText)}</p>
+        <p style="color:${t.dateMuted};font-size:13px;">${esc(content.dateText)}</p>
       </div>
     </body>
   </html>

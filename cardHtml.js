@@ -1,7 +1,10 @@
 /**
- * 温柔粉调卡片：把整理好的内容渲染成一张长图。
+ * 温柔马卡龙色卡片：把整理好的内容渲染成一张长图。
  * 纯 HTML，交给 Chrome 截图，所以字体/emoji/圆角都能正常渲染。
+ * 配色由 themes.js 每天轮换，这里只负责套用颜色变量。
  */
+const { DEFAULT_THEME } = require('./themes');
+
 const esc = (v) => {
   if (v === undefined || v === null) return '';
   return String(v)
@@ -24,6 +27,8 @@ function wxCol({ head, icon, tempMin, tempMax, desc, wind, mine }) {
 }
 
 function cardHtml(c) {
+  const t = c.theme || DEFAULT_THEME;
+
   const life = (c.lifeItems || [])
     .map(
       (it) => `
@@ -71,29 +76,29 @@ function cardHtml(c) {
   body {
     width: 720px;
     font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Noto Color Emoji', sans-serif;
-    background: linear-gradient(160deg, #ffe3ee 0%, #ffd6e7 45%, #ffe9f2 100%);
+    background: ${t.pageBg};
     padding: 44px 40px 52px;
   }
   .card {
     background: rgba(255,255,255,0.82);
     border-radius: 28px;
     padding: 40px 34px 34px;
-    box-shadow: 0 10px 34px rgba(219,112,147,0.16);
+    box-shadow: 0 10px 34px ${t.shadow};
   }
-  .hi { font-size: 34px; color: #b3456e; font-weight: 700; letter-spacing: 1px; }
+  .hi { font-size: 34px; color: ${t.accentDark}; font-weight: 700; letter-spacing: 1px; }
   .days {
     margin-top: 16px;
     font-size: 26px;
-    color: #c94f7c;
+    color: ${t.accent};
     font-weight: 700;
   }
   .days .num { font-size: 46px; margin: 0 4px; }
   .divider {
     height: 1px;
-    background: linear-gradient(90deg, rgba(219,112,147,0), rgba(219,112,147,0.45), rgba(219,112,147,0));
+    background: linear-gradient(90deg, ${t.dividerEdge}, ${t.divider}, ${t.dividerEdge});
     margin: 28px 0;
   }
-  .sec-head { font-size: 22px; color: #b3456e; font-weight: 700; }
+  .sec-head { font-size: 22px; color: ${t.accentDark}; font-weight: 700; }
   .wx-row {
     display: flex;
     gap: 14px;
@@ -103,54 +108,54 @@ function cardHtml(c) {
   .wx-col {
     flex: 1;
     min-width: 0;
-    background: rgba(255,214,231,0.78);
+    background: ${t.colBg};
     border-radius: 20px;
     padding: 20px 18px;
     text-align: left;
   }
   /* 自己那栏不加背景框，也不需要内边距，好和标题左对齐 */
   .wx-col.mine { background: transparent; padding-left: 0; padding-right: 0; }
-  .wx-city { font-size: 17px; color: #b3456e; font-weight: 700; }
+  .wx-city { font-size: 17px; color: ${t.accentDark}; font-weight: 700; }
   .wx-temp {
     margin-top: 8px;
     font-size: 25px;
-    color: #c94f7c;
+    color: ${t.accent};
     font-weight: 700;
     white-space: nowrap;
   }
-  .wx-desc { margin-top: 8px; font-size: 21px; color: #7d5b68; line-height: 1.5; }
-  .wx-wind { margin-top: 6px; font-size: 16px; color: #9c7b88; line-height: 1.5; }
-  .life-head { margin-top: 30px; font-size: 20px; color: #b3456e; font-weight: 700; }
+  .wx-desc { margin-top: 8px; font-size: 21px; color: ${t.body}; line-height: 1.5; }
+  .wx-wind { margin-top: 6px; font-size: 16px; color: ${t.muted}; line-height: 1.5; }
+  .life-head { margin-top: 30px; font-size: 20px; color: ${t.accentDark}; font-weight: 700; }
   .life { margin-top: 16px; }
   .life-name {
     display: inline-block;
     font-size: 17px;
-    color: #c94f7c;
-    background: rgba(255,192,214,0.42);
+    color: ${t.accent};
+    background: ${t.chipBg};
     border-radius: 999px;
     padding: 4px 14px;
     margin-bottom: 8px;
   }
-  .life-text { font-size: 19px; color: #7d5b68; line-height: 1.75; }
+  .life-text { font-size: 19px; color: ${t.body}; line-height: 1.75; }
   .love {
     margin-top: 28px;
-    background: linear-gradient(135deg, #fff0f5, #ffe0ec);
+    background: ${t.loveBg};
     border-radius: 20px;
     padding: 24px 26px;
   }
-  .love-title { font-size: 19px; color: #c94f7c; font-weight: 700; }
-  .love-text { font-size: 21px; color: #8a5c6d; line-height: 1.8; margin-top: 12px; }
+  .love-title { font-size: 19px; color: ${t.accent}; font-weight: 700; }
+  .love-text { font-size: 21px; color: ${t.loveText}; line-height: 1.8; margin-top: 12px; }
   .sign {
     margin-top: 28px;
     text-align: right;
     font-size: 21px;
-    color: #b3456e;
+    color: ${t.accentDark};
   }
   .date-end {
     margin-top: 14px;
     text-align: center;
     font-size: 17px;
-    color: #b79aa6;
+    color: ${t.dateMuted};
     letter-spacing: 0.5px;
   }
 </style>

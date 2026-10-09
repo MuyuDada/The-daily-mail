@@ -2,6 +2,14 @@
  * 把接口原始数据整理成「邮件」和「卡片图」共用的结构化内容。
  * 这样文字邮件和图片卡片永远一致，不会两处各改一套。
  */
+const { pickTheme, THEMES, DEFAULT_THEME } = require('./themes');
+
+/** 按名字挑主题（配置里写死某个颜色时用），找不到就返回 null */
+function themeByName(name) {
+  const key = String(name || '').trim();
+  if (!key) return null;
+  return THEMES.find((t) => t.name === key || t.name.includes(key)) || null;
+}
 
 /**
  * 生活指数的亲昵语气前缀（异地恋版）。
@@ -95,10 +103,15 @@ function buildContent({
   loveWord,
   signature,
   dateText,
+  themeName,
 }) {
   const weatherDataDaily = (weatherData && weatherData.daily) || [];
   const daily = (lifeData && lifeData.daily) || [];
   const today = weatherDataDaily[0] || {};
+  const days = Number.isFinite(Number(lovingDays)) ? Number(lovingDays) : 0;
+
+  // 每天换一种马卡龙配色；配置里指定了名字就用指定的那个
+  const theme = themeByName(themeName) || pickTheme(days);
 
   const lifeItems = daily.map((item) => ({
     emoji: LIFE_EMOJI[String(item.type)] || '',
@@ -123,7 +136,7 @@ function buildContent({
 
   return {
     dateText: dateText || '',
-    days: Number.isFinite(Number(lovingDays)) ? lovingDays : 0,
+    days,
     city: city || '',
     tempMin: today.tempMin === undefined ? '--' : today.tempMin,
     tempMax: today.tempMax === undefined ? '--' : today.tempMax,
@@ -134,7 +147,16 @@ function buildContent({
     lifeItems,
     loveWord: loveWord || '',
     signature: signature || '',
+    theme,
   };
 }
 
-module.exports = { buildContent, SWEET_PREFIX, LIFE_EMOJI, weatherEmoji };
+module.exports = {
+  buildContent,
+  SWEET_PREFIX,
+  LIFE_EMOJI,
+  weatherEmoji,
+  themeByName,
+  THEMES,
+  DEFAULT_THEME,
+};
