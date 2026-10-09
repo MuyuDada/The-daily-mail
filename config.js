@@ -11,6 +11,9 @@
 //   WEATHER_LOCATION=101090209
 //   TIANXING_KEY=你的天行数据key
 //   START_DAY=2026-10-01
+//   WEATHER_LOCATION_TA=101190701   # 可选：TA 城市的 LocationID（盐城）
+//   MAIL_CITY_TA=盐城                # 可选：TA 的城市名
+//   MAIL_LOVE_NAME=宝贝              # 可选：土味情话里 XXX 占位符的替换词
 
 const fs = require('fs');
 const path = require('path');
@@ -70,4 +73,11 @@ module.exports = {
   startDay: env.START_DAY || '2026-10-01', // 在一起的日期
   city: env.MAIL_CITY || '', // 邮件里显示的「今日X天气」；留空则自动按 LocationID 反查城市名
   signature: env.MAIL_SIGNATURE || '爱你的小宝', // 邮件结尾落款（不含「——」）
+  // TA 那边的天气（只要天气情况，不带生活指数）；填 off 就整块不显示
+  taLocation:
+    env.WEATHER_LOCATION_TA === 'off'
+      ? ''
+      : env.WEATHER_LOCATION_TA || '101190701', // TA 城市的和风 LocationID（盐城）
+  taCity: env.MAIL_CITY_TA || '盐城', // TA 的城市名
+  loveName: env.MAIL_LOVE_NAME || '宝贝', // 土味情话里 XXX 占位符的替换词
 };

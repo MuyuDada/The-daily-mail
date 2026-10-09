@@ -17,11 +17,25 @@ function fn(c) {
   const content = c || {};
 
   const lifeLines = (content.lifeItems || [])
-    .map((it) => `<p>${esc(it.label)}: ${esc(it.text)}</p>`)
+    .map(
+      (it) =>
+        `<p>${esc(it.emoji ? it.emoji + ' ' : '')}${esc(it.label)}: ${esc(
+          it.text
+        )}</p>`
+    )
     .join('\n        ');
 
   const loveBlock = content.loveWord
-    ? `<p>每日土味情话：<br />${esc(content.loveWord)}</p>`
+    ? `<p>💌 每日土味情话：<br />${esc(content.loveWord)}</p>`
+    : '';
+
+  const taBlock = content.ta
+    ? `<p>🏙️ TA那边 · ${esc(content.ta.city)}<br />
+          ${esc(content.ta.icon)} ${esc(content.ta.tempMin)}℃/${esc(
+        content.ta.tempMax
+      )}℃ ${esc(content.ta.desc)}${
+        content.ta.wind ? ` · ${esc(content.ta.wind)}` : ''
+      }</p>`
     : '';
 
   return `<!DOCTYPE html>
@@ -34,17 +48,19 @@ function fn(c) {
     <body>
       <div>
         <p>宝贝你好呀🥰</p>
-        <p>今天是${esc(content.dateText)}</p>
         <p>我们在一起的第${esc(content.days)}天💞</p>
         <p>
-          今日${esc(content.city)}天气:<br />
+          ${esc(content.icon)} 今日${esc(content.city)}天气:<br />
           温度:${esc(content.tempMin)}℃/${esc(content.tempMax)}℃<br />
-          ${esc(content.weatherDesc)}<br />
-          ${esc(content.wind)}
+          ${esc(content.weatherDesc)}${
+    content.wind ? ` · ${esc(content.wind)}` : ''
+  }
         </p>
         ${lifeLines}
+        ${taBlock}
         ${loveBlock}
         <p>——${esc(content.signature)}</p>
+        <p>${esc(content.dateText)}</p>
       </div>
     </body>
   </html>

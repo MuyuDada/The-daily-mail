@@ -28,9 +28,68 @@ const SWEET_PREFIX = {
   15: '路上慢一点，我还在等你回来，',
 };
 
+/** 生活指数的小图标，同样按和风 type 匹配 */
+const LIFE_EMOJI = {
+  1: '🏃',
+  2: '🧴',
+  3: '👕',
+  5: '🚗',
+  6: '🧳',
+  7: '🤧',
+  8: '🌈',
+  9: '🤒',
+  10: '🍃',
+  11: '❄️',
+  12: '🕶️',
+  13: '💄',
+  14: '🧺',
+  15: '🚦',
+};
+
+/**
+ * 天气图标：把和风返回的 iconDay/iconNight 数字码映射成 emoji。
+ * 用 emoji 而不是外链图片，是因为它不依赖渲染时的网络，且 CI 已装彩色 emoji 字体。
+ */
+function weatherEmoji(code) {
+  const c = Number(code);
+  if (!Number.isFinite(c)) return '';
+  if (c === 100) return '☀️';
+  if (c === 150) return '🌙';
+  if (c >= 101 && c <= 103) return '🌤️';
+  if (c === 104 || (c >= 151 && c <= 154)) return '☁️';
+  if (c >= 300 && c <= 304) return '⛈️';
+  if (c >= 305 && c <= 399) return '🌧️';
+  if (c >= 400 && c <= 499) return '❄️';
+  if (c >= 500 && c <= 515) return '🌫️';
+  if (c === 900) return '🔥';
+  if (c === 901) return '🥶';
+  return '';
+}
+
+/** 把一天的天气写成「晴转多云」这种短描述（不再带「今天」，避免和标题重复） */
+function describeDay(day) {
+  const d = day || {};
+  const dayText = d.textDay || '';
+  const nightText = d.textNight || '';
+  if (dayText && nightText && dayText !== nightText) {
+    return `${dayText}转${nightText}`;
+  }
+  return dayText || nightText || '';
+}
+
+/** 风向 + 风力，例如「南风 1-3级」 */
+function describeWind(day) {
+  const d = day || {};
+  return [d.windDirDay, d.windScaleDay ? `${d.windScaleDay}级` : '']
+    .filter(Boolean)
+    .join(' ');
+}
+
 function buildContent({
   weatherData,
   lifeData,
+  taWeatherData,
+  taCity,
   lovingDays,
   city,
   loveWord,
@@ -41,43 +100,41 @@ function buildContent({
   const daily = (lifeData && lifeData.daily) || [];
   const today = weatherDataDaily[0] || {};
 
-  const tempMin = today.tempMin === undefined ? '--' : today.tempMin;
-  const tempMax = today.tempMax === undefined ? '--' : today.tempMax;
-
-  // 「今天X转Y」；白天夜间天气相同就只写一个
-  const dayText = today.textDay || '';
-  const nightText = today.textNight || '';
-  let weatherDesc = '';
-  if (dayText && nightText && dayText !== nightText) {
-    weatherDesc = `今天${dayText}转${nightText}`;
-  } else if (dayText || nightText) {
-    weatherDesc = `今天${dayText || nightText}`;
-  }
-
-  const wind = [
-    today.windDirDay,
-    today.windScaleDay ? `${today.windScaleDay}级` : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
   const lifeItems = daily.map((item) => ({
+    emoji: LIFE_EMOJI[String(item.type)] || '',
     label: `${item.name || ''}${item.category ? `(${item.category})` : ''}`,
     text: (SWEET_PREFIX[String(item.type)] || '') + (item.text || ''),
   }));
+
+  // TA 那边的天气：只要天气情况，不带生活指数
+  let ta = null;
+  const taDaily = (taWeatherData && taWeatherData.daily) || [];
+  if (taDaily.length) {
+    const t = taDaily[0];
+    ta = {
+      city: taCity || '',
+      icon: weatherEmoji(t.iconDay),
+      tempMin: t.tempMin === undefined ? '--' : t.tempMin,
+      tempMax: t.tempMax === undefined ? '--' : t.tempMax,
+      desc: describeDay(t),
+      wind: describeWind(t),
+    };
+  }
 
   return {
     dateText: dateText || '',
     days: Number.isFinite(Number(lovingDays)) ? lovingDays : 0,
     city: city || '',
-    tempMin,
-    tempMax,
-    weatherDesc,
-    wind,
+    tempMin: today.tempMin === undefined ? '--' : today.tempMin,
+    tempMax: today.tempMax === undefined ? '--' : today.tempMax,
+    weatherDesc: describeDay(today),
+    wind: describeWind(today),
+    icon: weatherEmoji(today.iconDay),
+    ta,
     lifeItems,
     loveWord: loveWord || '',
     signature: signature || '',
   };
 }
 
-module.exports = { buildContent, SWEET_PREFIX };
+module.exports = { buildContent, SWEET_PREFIX, LIFE_EMOJI, weatherEmoji };

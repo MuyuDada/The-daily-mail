@@ -25,6 +25,9 @@ const {
   startDay,
   city,
   signature,
+  taLocation,
+  taCity,
+  loveName,
 } = require('./config');
 
 const TZ = 'Asia/Shanghai';
@@ -88,6 +91,19 @@ async function init() {
       }
     }
 
+    // TA 那边的天气：只要天气情况，不带生活指数（失败就不显示这一块）
+    let taWeatherData = null;
+    if (taLocation) {
+      try {
+        taWeatherData = await fetchJson(
+          `https://devapi.qweather.com/v7/weather/3d?key=${weatherKey}&location=${taLocation}`,
+          '和风天气-TA城市天气'
+        );
+      } catch (e) {
+        console.error('[每日提醒] TA城市天气获取失败，已忽略：', e.message);
+      }
+    }
+
     // 土味情话：拿不到就整块不显示（失败不影响主流程）
     let loveWord = '';
     try {
@@ -96,6 +112,9 @@ async function init() {
         '天行数据-土味情话'
       );
       loveWord = (loveData.result && loveData.result.content) || '';
+      // 天行有时返回带 XXX 占位符的模板句（XXX 本意是让对方填名字），
+      // 直接显示出来会很出戏，这里统一替换掉。
+      loveWord = loveWord.replace(/XXX|XX+|xx+|某某/g, loveName);
     } catch (e) {
       console.error('[每日提醒] 土味情话获取失败，已忽略：', e.message);
     }
@@ -111,6 +130,8 @@ async function init() {
     const content = buildContent({
       weatherData,
       lifeData,
+      taWeatherData,
+      taCity,
       lovingDays,
       city: cityName,
       loveWord,
