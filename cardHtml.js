@@ -163,7 +163,7 @@ function cardHtml(c) {
 <body>
   <div class="card">
     <div class="hi">宝贝你好呀🥰</div>
-    <div class="days">我们在一起的第<span class="num">${esc(c.days)}</span>天💞</div>
+    <div class="days">今天是我们认识的第<span class="num">${esc(c.days)}</span>天💞</div>
 
     <div class="divider"></div>
 

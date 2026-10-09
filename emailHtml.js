@@ -95,7 +95,7 @@ function fn(c) {
     <body style="font-family:'Microsoft YaHei','PingFang SC',sans-serif;">
       <div>
         <p>宝贝你好呀🥰</p>
-        <p>我们在一起的第${esc(content.days)}天💞</p>
+        <p>今天是我们认识的第${esc(content.days)}天💞</p>
         <p style="margin-top:18px;color:${t.accentDark};font-weight:bold;">🌤️ 今日天气</p>
         ${wxRow}
         ${lifeBlock}
