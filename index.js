@@ -20,13 +20,24 @@ const {
   type,
   tianXingKey,
   startDay,
+  city,
+  signature,
 } = require('./config');
 
 const TZ = 'Asia/Shanghai';
+const WEEKDAYS = [
+  '星期日',
+  '星期一',
+  '星期二',
+  '星期三',
+  '星期四',
+  '星期五',
+  '星期六',
+];
 
 /**
  * 请求 JSON 接口，并校验业务状态码。
- * 和风天气成功时返回 { code: '200' }，失败时可能返回非 200 的 code 或 HTTP 400。
+ * 和风天气成功返回 { code: '200' }，天行数据成功返回 { code: 200 }。
  */
 async function fetchJson(url, name) {
   const res = await fetch(url);
@@ -60,22 +71,61 @@ async function init() {
     );
 
     // 获取one一个文案及图片
+    // 注意：新版域名 apis.tianapi.com 返回 result，旧版 api.tianapi.com/txapi 返回 newslist，两者都兼容
     const oneData = await fetchJson(
-      `http://api.tianapi.com/txapi/one/index?key=${tianXingKey}`,
+      `https://apis.tianapi.com/one/index?key=${tianXingKey}`,
       '天行数据-每日一句'
     );
-    const one = (oneData.newslist || [])[0] || {};
+    const one = (oneData.result || (oneData.newslist || [])[0]) || {};
     const word = one.word || '';
     const imgurl = one.imgurl || '';
 
-    // 计算日期：两端都按北京时间「当天 00:00」对齐，避免运行机器时区不同导致差一天
-    const lovingDays = dayjs()
-      .tz(TZ)
+    // 城市名：配置里没写就查一次（失败不影响主流程）
+    let cityName = city;
+    if (!cityName) {
+      try {
+        const geoData = await fetchJson(
+          `https://geoapi.qweather.com/v2/city/lookup?key=${weatherKey}&location=${location}`,
+          '和风天气-城市查询'
+        );
+        const first = (geoData.location || [])[0] || {};
+        cityName = first.name || '';
+      } catch (e) {
+        console.error('[每日提醒] 城市名获取失败，已忽略：', e.message);
+      }
+    }
+
+    // 土味情话：拿不到就整块不显示（失败不影响主流程）
+    let loveWord = '';
+    try {
+      const loveData = await fetchJson(
+        `https://apis.tianapi.com/caihongpi/index?key=${tianXingKey}`,
+        '天行数据-土味情话'
+      );
+      loveWord = (loveData.result && loveData.result.content) || '';
+    } catch (e) {
+      console.error('[每日提醒] 土味情话获取失败，已忽略：', e.message);
+    }
+
+    // 计算日期：两端都按北京时间「当天 00:00」对齐
+    const now = dayjs().tz(TZ);
+    const lovingDays = now
       .startOf('day')
       .diff(dayjs.tz(startDay, TZ).startOf('day'), 'days');
+    const dateText = `${now.format('YYYY年M月D日 HH:mm')} ${WEEKDAYS[now.day()]}`;
 
     // 用邮件模版生成字符串
-    const htmlStr = emailHtml(weatherData, lifeData, word, imgurl, lovingDays);
+    const htmlStr = emailHtml({
+      weatherData,
+      lifeData,
+      word,
+      imgurl,
+      lovingDays,
+      city: cityName,
+      loveWord,
+      signature,
+      dateText,
+    });
 
     // 发送邮件
     await sendEmail({
@@ -85,7 +135,9 @@ async function init() {
       html: htmlStr,
     });
 
-    console.log(`[每日提醒] 已发送至 ${to}，今天是在一起的第 ${lovingDays} 天`);
+    console.log(
+      `[每日提醒] 已发送至 ${to}，今天是在一起的第 ${lovingDays} 天`
+    );
   } catch (e) {
     // 先打印真实错误，保证 Actions 日志里能看到原因
     console.error('[每日提醒] 发送失败：', e);

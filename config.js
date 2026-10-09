@@ -68,4 +68,6 @@ module.exports = {
   type: env.WEATHER_INDICES_TYPE || '1,3,9', // 和风天气-生活指数type
   tianXingKey: env.TIANXING_KEY, // 天行数据的key
   startDay: env.START_DAY || '2026-10-01', // 在一起的日期
+  city: env.MAIL_CITY || '', // 邮件里显示的「今日X天气」；留空则自动按 LocationID 反查城市名
+  signature: env.MAIL_SIGNATURE || '爱你的小宝', // 邮件结尾落款（不含「——」）
 };
