@@ -1,0 +1,33 @@
+name: ccy-helper
+
+on:
+  schedule:
+    # 注意：cron 使用 UTC 时间，北京时间 = UTC + 8
+    # "02 00 * * *" = 北京时间每天 08:02
+    - cron: "02 00 * * *"
+  # 支持在 Actions 页面手动点一下立即运行，方便调试
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Run Project
+        env:
+          # 在仓库 Settings → Secrets and variables → Actions 中配置这些 Secret
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          WEATHER_KEY: ${{ secrets.WEATHER_KEY }}
+          TIANXING_KEY: ${{ secrets.TIANXING_KEY }}
+          # 以下是可选配置，不配也有默认值
+          WEATHER_LOCATION: ${{ secrets.WEATHER_LOCATION }}
+          START_DAY: ${{ secrets.START_DAY }}
+          MAIL_FROM_NAME: ${{ secrets.MAIL_FROM_NAME }}
+          MAIL_SUBJECT: ${{ secrets.MAIL_SUBJECT }}
+        run: npm ci && npm run server
