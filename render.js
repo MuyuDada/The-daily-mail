@@ -8,6 +8,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const net = require('net');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const fetch = require('node-fetch');
 
@@ -50,6 +52,191 @@ async function waitForCdp(port, timeoutMs) {
     await sleep(200);
   }
   throw new Error('Chrome 调试端口未就绪');
+}
+
+/**
+ * 极简 WebSocket 客户端（RFC 6455 子集）。
+ *
+ * 为什么需要它：Node 20（GitHub Actions 用的版本）没有全局 WebSocket，
+ * 直接 new WebSocket(...) 会抛 "WebSocket is not defined"，卡片图就生成不了。
+ * 这里用 net + 手写帧协议实现，保持零依赖。
+ */
+class MiniWebSocket {
+  constructor(url) {
+    const u = new URL(url);
+    this._listeners = { open: [], message: [], error: [], close: [] };
+    this._buf = Buffer.alloc(0);
+    this._frags = [];
+    this._handshook = false;
+
+    const key = crypto.randomBytes(16).toString('base64');
+    const socket = net.connect(Number(u.port || 80), u.hostname, () => {
+      socket.write(
+        `GET ${u.pathname}${u.search} HTTP/1.1\r\n` +
+          `Host: ${u.host}\r\n` +
+          `Upgrade: websocket\r\n` +
+          `Connection: Upgrade\r\n` +
+          `Sec-WebSocket-Key: ${key}\r\n` +
+          `Sec-WebSocket-Version: 13\r\n\r\n`
+      );
+    });
+    this._socket = socket;
+    this._key = key;
+    socket.on('error', (e) => this._emit('error', e));
+    socket.on('close', () => this._emit('close', {}));
+    socket.on('data', (chunk) => this._onData(chunk));
+  }
+
+  addEventListener(type, fn, opts) {
+    const list = this._listeners[type];
+    if (!list) return;
+    if (opts && opts.once) {
+      const once = (ev) => {
+        this.removeEventListener(type, once);
+        fn(ev);
+      };
+      once._orig = fn;
+      list.push(once);
+    } else {
+      list.push(fn);
+    }
+  }
+
+  removeEventListener(type, fn) {
+    const list = this._listeners[type];
+    if (!list) return;
+    const i = list.findIndex((f) => f === fn || f._orig === fn);
+    if (i >= 0) list.splice(i, 1);
+  }
+
+  _emit(type, ev) {
+    const list = (this._listeners[type] || []).slice();
+    for (const fn of list) {
+      try {
+        fn(ev);
+      } catch (e) {
+        /* 忽略回调异常 */
+      }
+    }
+  }
+
+  send(str) {
+    this._frame(0x1, Buffer.from(str, 'utf8'));
+  }
+
+  close() {
+    try {
+      this._socket.end();
+    } catch (e) {
+      /* 忽略 */
+    }
+  }
+
+  _frame(opcode, payload) {
+    const len = payload.length;
+    let header;
+    if (len < 126) {
+      header = Buffer.allocUnsafe(6);
+      header[0] = 0x80 | opcode;
+      header[1] = 0x80 | len;
+    } else if (len < 65536) {
+      header = Buffer.allocUnsafe(8);
+      header[0] = 0x80 | opcode;
+      header[1] = 0x80 | 126;
+      header.writeUInt16BE(len, 2);
+    } else {
+      header = Buffer.allocUnsafe(14);
+      header[0] = 0x80 | opcode;
+      header[1] = 0x80 | 127;
+      header.writeUInt32BE(Math.floor(len / 4294967296), 2);
+      header.writeUInt32BE(len >>> 0, 6);
+    }
+    const mask = crypto.randomBytes(4);
+    mask.copy(header, header.length - 4);
+    const masked = Buffer.allocUnsafe(len);
+    for (let i = 0; i < len; i++) masked[i] = payload[i] ^ mask[i & 3];
+    this._socket.write(Buffer.concat([header, masked]));
+  }
+
+  _onData(chunk) {
+    this._buf = Buffer.concat([this._buf, chunk]);
+
+    if (!this._handshook) {
+      const idx = this._buf.indexOf('\r\n\r\n');
+      if (idx < 0) return;
+      const head = this._buf.slice(0, idx).toString('latin1');
+      this._buf = this._buf.slice(idx + 4);
+      const expect = crypto
+        .createHash('sha1')
+        .update(this._key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
+        .digest('base64');
+      const m = /sec-websocket-accept:\s*(\S+)/i.exec(head);
+      if (!m || m[1].trim() !== expect) {
+        this._emit('error', new Error('WebSocket 握手失败'));
+        return;
+      }
+      this._handshook = true;
+      this._emit('open', {});
+    }
+
+    for (;;) {
+      if (this._buf.length < 2) return;
+      const b0 = this._buf[0];
+      const b1 = this._buf[1];
+      const fin = (b0 & 0x80) !== 0;
+      const opcode = b0 & 0x0f;
+      const masked = (b1 & 0x80) !== 0;
+      let len = b1 & 0x7f;
+      let off = 2;
+      if (len === 126) {
+        if (this._buf.length < 4) return;
+        len = this._buf.readUInt16BE(2);
+        off = 4;
+      } else if (len === 127) {
+        if (this._buf.length < 10) return;
+        len = this._buf.readUInt32BE(2) * 4294967296 + this._buf.readUInt32BE(6);
+        off = 10;
+      }
+      let mask;
+      if (masked) {
+        if (this._buf.length < off + 4) return;
+        mask = this._buf.slice(off, off + 4);
+        off += 4;
+      }
+      if (this._buf.length < off + len) return;
+
+      let payload = this._buf.slice(off, off + len);
+      this._buf = this._buf.slice(off + len);
+      if (masked) {
+        const p = Buffer.allocUnsafe(len);
+        for (let i = 0; i < len; i++) p[i] = payload[i] ^ mask[i & 3];
+        payload = p;
+      }
+
+      if (opcode === 0x9) {
+        this._frame(0xa, payload); // ping -> pong
+        continue;
+      }
+      if (opcode === 0xa) continue; // pong
+      if (opcode === 0x8) {
+        this._emit('close', {});
+        try {
+          this._socket.end();
+        } catch (e) {
+          /* 忽略 */
+        }
+        return;
+      }
+      if (opcode === 0x1 || opcode === 0x2 || opcode === 0x0) {
+        this._frags.push(payload);
+        if (fin) {
+          const data = Buffer.concat(this._frags);
+          this._frags = [];
+          this._emit('message', { data: data.toString('utf8') });
+        }
+      }
+    }
+  }
 }
 
 /** 极简 CDP 调用封装 */
@@ -127,7 +314,7 @@ async function renderHtmlToPng(html, opts = {}) {
   let ws;
   try {
     const wsUrl = await waitForCdp(port, 20000);
-    ws = new WebSocket(wsUrl);
+    ws = new MiniWebSocket(wsUrl);
     await new Promise((resolve, reject) => {
       ws.addEventListener('open', resolve, { once: true });
       ws.addEventListener('error', () => reject(new Error('CDP 连接失败')), {
@@ -167,7 +354,9 @@ async function renderHtmlToPng(html, opts = {}) {
       format,
       quality: format === 'jpeg' ? quality : undefined,
       captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width, height: fullHeight, scale },
+      // clip.scale 固定为 1：清晰度已经由 deviceScaleFactor 控制，
+      // 两者相乘会变成 4 倍图（体积翻好几倍），没必要。
+      clip: { x: 0, y: 0, width, height: fullHeight, scale: 1 },
     });
 
     return Buffer.from(shot.data, 'base64');
