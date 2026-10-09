@@ -29,14 +29,16 @@ function fn(c) {
     ? `<p>💌 每日土味情话：<br />${esc(content.loveWord)}</p>`
     : '';
 
-  // 两个城市并排（邮件里用表格，兼容性最好）
-  const wxCell = (head, icon, min, max, desc, wind) =>
-    `<td width="50%" valign="top" style="padding:8px 10px;background:#ffe4f0;border-radius:14px;">
+  // 两个城市并排（邮件里用表格，兼容性最好）；自己那栏不加背景框
+  const wxCell = (head, icon, min, max, desc, wind, boxed) =>
+    `<td width="50%" valign="top" style="padding:8px 10px;${
+      boxed ? 'background:#ffe4f0;border-radius:14px;' : ''
+    }">
           <div style="font-size:15px;color:#b3456e;font-weight:bold;">${esc(head)}</div>
+          <div style="font-size:15px;color:#7d5b68;margin-top:6px;">${esc(desc)}</div>
           <div style="font-size:20px;color:#c94f7c;font-weight:bold;margin-top:6px;">${esc(
             icon
           )} ${esc(min)}℃ / ${esc(max)}℃</div>
-          <div style="font-size:15px;color:#7d5b68;margin-top:6px;">${esc(desc)}</div>
           ${wind ? `<div style="font-size:14px;color:#9c7b88;margin-top:2px;">${esc(wind)}</div>` : ''}
         </td>`;
 
@@ -48,7 +50,8 @@ function fn(c) {
             content.tempMin,
             content.tempMax,
             content.weatherDesc,
-            content.wind
+            content.wind,
+            false
           )}
           <td width="14"></td>
           ${wxCell(
@@ -57,7 +60,8 @@ function fn(c) {
             content.ta.tempMin,
             content.ta.tempMax,
             content.ta.desc,
-            content.ta.wind
+            content.ta.wind,
+            true
           )}
         </tr></table>`
     : `<table width="100%" cellpadding="0" cellspacing="0"><tr>
@@ -67,7 +71,8 @@ function fn(c) {
             content.tempMin,
             content.tempMax,
             content.weatherDesc,
-            content.wind
+            content.wind,
+            false
           )}
         </tr></table>`;
 

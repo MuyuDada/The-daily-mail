@@ -17,8 +17,8 @@ function wxCol({ head, icon, tempMin, tempMax, desc, wind, mine }) {
   return `
     <div class="wx-col${mine ? ' mine' : ''}">
       <div class="wx-city">${esc(head)}</div>
-      <div class="wx-temp">${esc(icon)} ${esc(tempMin)}℃ / ${esc(tempMax)}℃</div>
       ${desc ? `<div class="wx-desc">${esc(desc)}</div>` : ''}
+      <div class="wx-temp">${esc(icon)} ${esc(tempMin)}℃ / ${esc(tempMax)}℃</div>
       ${wind ? `<div class="wx-wind">${esc(wind)}</div>` : ''}
     </div>`;
 }
@@ -108,7 +108,8 @@ function cardHtml(c) {
     padding: 20px 14px;
     text-align: center;
   }
-  .wx-col.mine { background: rgba(255,203,224,0.92); }
+  /* 自己那栏不加背景框 */
+  .wx-col.mine { background: transparent; }
   .wx-city { font-size: 18px; color: #b3456e; font-weight: 700; }
   .wx-temp {
     margin-top: 10px;
