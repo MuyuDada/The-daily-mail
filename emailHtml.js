@@ -9,11 +9,33 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * 生活指数的「暧昧语气助词」。
+ * 按和风指数 type 给一句亲昵的前缀，没有对应项就不加。
+ * type 对照：1运动 2防晒 3穿衣 5洗车 6旅游 7过敏 8舒适度 9感冒
+ *          10空气 11空调 12太阳镜 13化妆 14晾晒 15交通
+ */
+const SWEET_PREFIX = {
+  1: '陪我一起动一动嘛，',
+  2: '出门记得防晒呀，',
+  3: '要穿得暖暖的哦，',
+  5: '洗车这种活儿交给我啦，',
+  6: '想和你一起去呢，',
+  7: '可别过敏呀，',
+  8: '这么舒服的天，最适合见你啦，',
+  9: '不许感冒呀，',
+  10: '空气不错，多吸两口嘛，',
+  11: '空调别开太凉哦，',
+  12: '太阳镜戴上，也挡不住你好看，',
+  13: '今天也要美美的呀，',
+  14: '晒晒被子嘛，',
+  15: '路上小心哦，',
+};
+
 function fn({
   weatherData,
   lifeData,
   word,
-  imgurl,
   lovingDays,
   city,
   loveWord,
@@ -24,9 +46,6 @@ function fn({
   const daily = (lifeData && lifeData.daily) || [];
 
   const today = weatherDataDaily[0] || {};
-
-  // 穿衣指数（type=3）；取不到就退化成第一条，再取不到就留空
-  const dress = daily.find((item) => item.type === '3') || daily[0] || {};
 
   const tempMin = today.tempMin === undefined ? '--' : today.tempMin;
   const tempMax = today.tempMax === undefined ? '--' : today.tempMax;
@@ -50,11 +69,16 @@ function fn({
 
   const safeDays = Number.isFinite(Number(lovingDays)) ? lovingDays : 0;
 
-  const imageBlock = imgurl
-    ? `<p><img style="width: 100%; max-width: 768px" src="${esc(
-        imgurl
-      )}" alt="图片" /></p>`
-    : '';
+  // 生活指数：每条加上亲昵的语气助词，并标出指数名与等级
+  const lifeLines = daily
+    .map((item) => {
+      const prefix = SWEET_PREFIX[String(item.type)] || '';
+      const label = `${item.name || ''}${
+        item.category ? `(${item.category})` : ''
+      }`;
+      return `<p>${esc(label)}: ${esc(prefix + (item.text || ''))}</p>`;
+    })
+    .join('\n        ');
 
   // 土味情话拿不到时整块省略，不留空标题
   const loveBlock = loveWord
@@ -78,13 +102,12 @@ function fn({
         <p>我们在一起的第${esc(safeDays)}天💞</p>
         <p>
           今日${esc(city)}天气:<br />
-          ${esc(dress.text)}<br />
-          ${esc(weatherDesc)}<br />
           温度:${esc(tempMin)}℃/${esc(tempMax)}℃<br />
+          ${esc(weatherDesc)}<br />
           ${esc(wind)}
         </p>
+        ${lifeLines}
         ${wordBlock}
-        ${imageBlock}
         ${loveBlock}
         <p>——${esc(signature)}</p>
       </div>
