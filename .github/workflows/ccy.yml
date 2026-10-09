@@ -17,6 +17,16 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: 安装中文字体与浏览器
+        run: |
+          sudo apt-get update -qq
+          # 不装中文字体的话，卡片图里的中文会变成方框
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-noto-color-emoji
+          # 运行器一般自带 Chrome；万一没有就用 chromium 兜底
+          if ! command -v google-chrome >/dev/null 2>&1 && [ ! -x /usr/bin/google-chrome ]; then
+            sudo apt-get install -y -qq chromium-browser || true
+          fi
+          fc-cache -f >/dev/null 2>&1 || true
       - name: Run Project
         env:
           # 在仓库 Settings → Secrets and variables → Actions 中配置这些 Secret

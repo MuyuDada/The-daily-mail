@@ -5,6 +5,9 @@ const timezone = require('dayjs/plugin/timezone');
 
 const sendEmail = require('./sendEmail');
 const emailHtml = require('./emailHtml');
+const { buildContent } = require('./content');
+const { cardHtml } = require('./cardHtml');
+const { renderHtmlToPng } = require('./render');
 
 // 给dayjs添加时区选项
 dayjs.extend(utc);
@@ -105,7 +108,7 @@ async function init() {
     const dateText = `${now.format('YYYY年M月D日 HH:mm')} ${WEEKDAYS[now.day()]}`;
 
     // 用邮件模版生成字符串
-    const htmlStr = emailHtml({
+    const content = buildContent({
       weatherData,
       lifeData,
       lovingDays,
@@ -115,12 +118,39 @@ async function init() {
       dateText,
     });
 
+    // 生成卡片图；失败就退回纯文字邮件，保证每天都有邮件
+    let htmlStr;
+    let attachments;
+    let cidImage = '';
+    try {
+      const png = await renderHtmlToPng(cardHtml(content), {
+        width: 720,
+        scale: 2,
+        format: 'jpeg',
+        quality: 85,
+      });
+      cidImage = 'daily-card';
+      attachments = [
+        {
+          filename: `每日提醒-${now.format('YYYY-MM-DD')}.jpg`,
+          content: png,
+          cid: cidImage,
+        },
+      ];
+      // 正文只放这张图，点开就是完整内容
+      htmlStr = `<div><img src="cid:${cidImage}" alt="每日提醒" style="width:100%;max-width:720px" /></div>`;
+    } catch (e) {
+      console.error('[每日提醒] 卡片图生成失败，改为发送文字邮件：', e.message);
+      htmlStr = emailHtml(content);
+    }
+
     // 发送邮件
     await sendEmail({
       from: fromDisplayText,
       to,
       subject: fromDisplaySubText,
       html: htmlStr,
+      attachments,
     });
 
     console.log(
