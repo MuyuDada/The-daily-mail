@@ -153,6 +153,17 @@ async function init() {
     let okCount = 0;
     const failed = [];
 
+    // 把解析结果打出来：万一 MAIL_TO 写错，日志里能立刻看出来
+    console.log(
+      `[每日提醒] 共 ${recipients.length} 位收件人：` +
+        recipients
+          .map(
+            (p) =>
+              `${p.to}（我=${p.myCity || p.myLocation}，TA=${p.taCity || p.taLocation || '无'}）`
+          )
+          .join('；')
+    );
+
     for (const person of recipients) {
       try {
         // 「我」的天气和生活指数按收件人各自的城市取

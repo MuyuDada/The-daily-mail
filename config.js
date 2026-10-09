@@ -77,7 +77,7 @@ const defaultTaCity = env.MAIL_CITY_TA || '盐城';
 
 /**
  * 解析收件人列表。
- * MAIL_TO 支持多个收件人（逗号或分号分隔），每人一条：
+ * MAIL_TO 支持多个收件人（逗号/分号/换行分隔），每人一条：
  *   邮箱|我的城市名|我的LocationID|TA的城市名|TA的LocationID
  *
  * 后面的段都可以省略：
@@ -87,11 +87,17 @@ const defaultTaCity = env.MAIL_CITY_TA || '盐城';
  *       → 显式指定 TA 是谁
  *   a@qq.com|101010100
  *       → 只给 ID，城市名自动反查
+ *
+ * 容错：很多人会连变量名一起复制（MAIL_TO=a@qq.com），这里会剥掉开头的
+ * 「变量名=」，也会把换行当分隔符，省得因为多粘了几个字就发错地址。
  */
 function parseRecipients(raw) {
   const people = String(raw)
-    .split(/[,;，；]/)
+    // 换行也当分隔符：整段 .env 粘进来时不会连成一条
+    .split(/[,;，；\r\n]+/)
     .map((chunk) => chunk.trim())
+    // 剥掉可能被一起粘进来的「MAIL_TO=」「邮箱=」这类前缀
+    .map((chunk) => chunk.replace(/^[A-Za-z_][A-Za-z0-9_]*\s*=\s*/, '').trim())
     .filter(Boolean)
     .map((chunk) => {
       const [mail, p2, p3, p4, p5] = chunk.split('|').map((s) => (s || '').trim());
@@ -120,6 +126,16 @@ function parseRecipients(raw) {
       };
     })
     .filter((r) => r.to);
+
+  // 地址不像邮箱就直接报错，免得跑到 SMTP 那一步才看到 550
+  const bad = people.filter((p) => !/^[^\s@|]+@[^\s@|]+\.[^\s@|]+$/.test(p.to));
+  if (bad.length) {
+    throw new Error(
+      `MAIL_TO 里的收件人地址不合法：${bad.map((b) => `「${b.to}」`).join('、')}。` +
+        `正确写法示例：2756390658@qq.com|涞源|101090209;2036781684@qq.com|盐城|101190701 ` +
+        `（只填地址和城市，不要把「MAIL_TO=」也写进去）`
+    );
+  }
 
   // 只有两个人、又都没显式写 TA 的时候，自动把对方当成 TA
   if (people.length === 2 && !taOff) {
