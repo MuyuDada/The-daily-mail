@@ -16,14 +16,14 @@ function themeByName(name) {
  *
  * 刻意避开「一起做」「陪着你」这类需要见面的说法，
  * 改成隔着距离也在惦记你的语气。按和风指数 type 匹配，没有对应项就不加。
- * type 对照：1运动 2防晒 3穿衣 5洗车 6旅游 7过敏 8舒适度 9感冒
+ * type 对照：1运动 2洗车 3穿衣 5紫外线 6旅游 7过敏 8舒适度 9感冒
  *          10空气 11空调 12太阳镜 13化妆 14晾晒 15交通
  */
 const SWEET_PREFIX = {
   1: '动一动吧，我在远方给你数着步数，',
-  2: '记得防晒，晒黑了我会心疼的，',
+  2: '洗车这种累活儿，留着等我回去干，',
   3: '多穿一点，你的冷暖我最放在心上，',
-  5: '洗车这种累活儿，留着等我回去干，',
+  5: '记得防晒，晒黑了我会心疼的，',
   6: '这里先记下来，等我们见面一起去，',
   7: '别过敏呀，隔着屏幕我照顾不到你，',
   8: '这么好的天，真想和你一起晒晒太阳，',
@@ -36,12 +36,57 @@ const SWEET_PREFIX = {
   15: '路上慢一点，我还在等你回来，',
 };
 
+/**
+ * 有些指数本身带方向性（热/冷、适宜/不宜），
+ * 前缀必须跟着等级走，否则会出现「天热还劝人多穿」「不宜运动还喊人出门」这种反话。
+ * 按 type 分组，组内从上往下第一个命中的 category 生效，都不命中就用上面的默认前缀。
+ */
+const SWEET_PREFIX_BY_CATEGORY = {
+  // 运动指数：不宜出门的时候不能喊人动起来
+  1: [
+    { match: /不宜|不适宜/, text: '外面不太适合运动，在家歇着也好，' },
+    { match: /适宜/, text: '动一动吧，我在远方给你数着步数，' },
+  ],
+  // 穿衣指数：热的时候不能劝人多穿
+  3: [
+    { match: /炎热|热/, text: '天热，穿得清凉透气一点，' },
+    { match: /寒冷|冷/, text: '多穿一点，你的冷暖我最放在心上，' },
+    { match: /舒适/, text: '穿得舒服最重要，' },
+  ],
+  // 舒适度指数：不舒适的时候不能说「这么好的天」
+  8: [
+    { match: /不舒适/, text: '天气不太舒服，照顾好自己，' },
+  ],
+  // 空气污染扩散条件：扩散差的时候不能说「多吸两口好空气」
+  10: [
+    { match: /较差|差|中/, text: '空气一般，出门记得戴口罩，' },
+  ],
+  // 太阳镜指数：不需要戴的时候不能劝人戴
+  12: [
+    { match: /不需要|不必/, text: '今天太阳不刺眼，不戴也没关系，' },
+  ],
+  // 晾晒指数：不宜晾晒的时候不能劝人晒被子
+  14: [
+    { match: /不宜|不太适宜/, text: '今天不太适合晒被子，改天再晒，' },
+  ],
+};
+
+/** 按 type + category 挑前缀；category 有方向性就跟着走，否则用默认 */
+function sweetPrefix(type, category) {
+  const rules = SWEET_PREFIX_BY_CATEGORY[String(type)];
+  if (rules) {
+    const hit = rules.find((r) => r.match.test(String(category || '')));
+    if (hit) return hit.text;
+  }
+  return SWEET_PREFIX[String(type)] || '';
+}
+
 /** 生活指数的小图标，同样按和风 type 匹配 */
 const LIFE_EMOJI = {
   1: '🏃',
-  2: '🧴',
+  2: '🚗',
   3: '👕',
-  5: '🚗',
+  5: '🧴',
   6: '🧳',
   7: '🤧',
   8: '🌈',
@@ -116,7 +161,7 @@ function buildContent({
   const lifeItems = daily.map((item) => ({
     emoji: LIFE_EMOJI[String(item.type)] || '',
     label: `${item.name || ''}${item.category ? `(${item.category})` : ''}`,
-    text: (SWEET_PREFIX[String(item.type)] || '') + (item.text || ''),
+    text: sweetPrefix(item.type, item.category) + (item.text || ''),
   }));
 
   // TA 那边的天气：只要天气情况，不带生活指数
@@ -154,6 +199,8 @@ function buildContent({
 module.exports = {
   buildContent,
   SWEET_PREFIX,
+  SWEET_PREFIX_BY_CATEGORY,
+  sweetPrefix,
   LIFE_EMOJI,
   weatherEmoji,
   themeByName,
