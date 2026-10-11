@@ -8,6 +8,7 @@ const emailHtml = require('./emailHtml');
 const { buildContent } = require('./content');
 const { cardHtml } = require('./cardHtml');
 const { renderHtmlToPng } = require('./render');
+const { readLastSent, writeLastSent } = require('./sentState');
 
 // 给dayjs添加时区选项
 dayjs.extend(utc);
@@ -77,6 +78,22 @@ async function lookupCity(locationId) {
 
 async function init() {
   try {
+    // 计算日期：两端都按北京时间「当天 00:00」对齐
+    const now = dayjs().tz(TZ);
+    const dateKey = now.format('YYYY-MM-DD');
+
+    // 今天已经发过就直接跳过。
+    // 工作流里配了好几个时间点，前一档被延迟或丢弃时后一档能补上；
+    // 靠这个标记保证一天仍然只发一封。FORCE_SEND=1 可以强制重发（调试用）。
+    const lastSent = readLastSent();
+    if (lastSent === dateKey && process.env.FORCE_SEND !== '1') {
+      console.log(
+        `[每日提醒] ${dateKey} 已经发过了（见 .last-sent），本次跳过。` +
+          `想强制重发就把环境变量 FORCE_SEND 设为 1。`
+      );
+      return;
+    }
+
     // 天气、生活指数、城市名都按 LocationID 缓存，同城只请求一次
     const weatherCache = new Map();
     const lifeCache = new Map();
@@ -129,7 +146,6 @@ async function init() {
     }
 
     // 计算日期：两端都按北京时间「当天 00:00」对齐
-    const now = dayjs().tz(TZ);
     const lovingDays = now
       .startOf('day')
       .diff(dayjs.tz(startDay, TZ).startOf('day'), 'days');
@@ -242,6 +258,11 @@ async function init() {
       );
     }
     if (!okCount) throw new Error('没有配置任何收件人（MAIL_TO 为空）');
+
+    // 全部成功才落标记，这样中途失败的那一档不会把当天算成「已发」，
+    // 后面几档 cron 还有机会补发。
+    writeLastSent(dateKey);
+    console.log(`[每日提醒] 已记录发送日期 ${dateKey}（写入 .last-sent）`);
   } catch (e) {
     // 先打印真实错误，保证 Actions 日志里能看到原因
     console.error('[每日提醒] 发送失败：', e);

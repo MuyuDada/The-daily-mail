@@ -110,6 +110,24 @@ npm run server
 
 > CI 上跑卡片图需要中文字体，workflow 里已经装了 `fonts-noto-cjk` 和 `fonts-noto-color-emoji`——不装的话中文会变方框、emoji 会变黑白。
 
+### 定时任务为什么排了三档
+
+GitHub 的 `schedule` 触发在负载高的时候**会被延迟，甚至整次被丢弃**（[官方文档](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)原话：*some queued jobs may be dropped*，高负载时段包括**每个整点**）。实测也确实发生过：有一次本该 00:02 UTC 触发的运行，实际迟到了 **4 小时 38 分**。
+
+所以 workflow 里连着排了三档（北京 08:02 / 09:02 / 10:02）：
+
+```yaml
+- cron: "02 00 * * *"   # 北京 08:02
+- cron: "02 01 * * *"   # 北京 09:02
+- cron: "02 02 * * *"   # 北京 10:02
+```
+
+前一档迟到或被丢掉时，后一档会补上。**同一天不会重复发送**：`index.js` 发送成功后会写一个 `.last-sent` 文件（内容是北京时间日期），下一次运行读到是今天就跳过。工作流随后会把这个文件提交回仓库。
+
+> 想强制重发一次：在 Actions 里手动 Run workflow 前，把仓库变量 `FORCE_SEND` 设为 `1`（或本地 `FORCE_SEND=1 node index.js`）。
+>
+> 顺带的好处：这个每日提交让仓库始终保持活动状态，避免 **public 仓库连续 60 天没有活动时定时任务被 GitHub 自动禁用**。如果哪天发现定时任务彻底不跑了，先去 Actions 页面看工作流是不是被 disable 了，点 **Enable workflow** 即可恢复。
+
 ## 出错时
 
 发送失败会打印完整错误栈，并尝试给自己发一封「定时邮件-报错提醒」，同时以非 0 退出码结束——**Actions 会显示红色失败**，不会再静默假绿。
