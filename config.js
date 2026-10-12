@@ -161,7 +161,7 @@ const recipients = parseRecipients(env.MAIL_TO);
 
 module.exports = {
   fromDisplayText: env.MAIL_FROM_NAME || '小宝', // 收件箱展示的来件人名字
-  fromDisplaySubText: env.MAIL_SUBJECT || '每日提醒', // 收件箱展示的次级标题
+  fromDisplaySubText: env.MAIL_SUBJECT || '每日请安😘', // 收件箱展示的次级标题
   user: env.MAIL_USER, // 发送者邮箱
   pass: env.MAIL_PASS, // 发送者邮箱SMTP协议密码（授权码）
   to: recipients[0].to, // 兼容旧用法：第一个收件人
