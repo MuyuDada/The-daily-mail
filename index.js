@@ -9,6 +9,7 @@ const { buildContent } = require('./content');
 const { cardHtml } = require('./cardHtml');
 const { renderHtmlToPng } = require('./render');
 const { readLastSent, writeLastSent } = require('./sentState');
+const { getHuangli } = require('./huangli');
 
 // 给dayjs添加时区选项
 dayjs.extend(utc);
@@ -166,6 +167,18 @@ async function init() {
       }
     }
 
+    // 黄历：本地推算，不请求接口。取不到就不显示这一块，不影响主流程。
+    let huangli = null;
+    try {
+      huangli = getHuangli({
+        year: now.year(),
+        month: now.month() + 1,
+        date: now.date(),
+      });
+    } catch (e) {
+      console.error('[每日提醒] 黄历推算失败，已忽略：', e.message);
+    }
+
     let okCount = 0;
     const failed = [];
 
@@ -205,6 +218,7 @@ async function init() {
           signature,
           dateText,
           themeName,
+          huangli,
         });
 
         // 生成卡片图；失败就退回纯文字邮件，保证每天都有邮件

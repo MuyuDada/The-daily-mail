@@ -160,8 +160,8 @@ function parseRecipients(raw) {
 const recipients = parseRecipients(env.MAIL_TO);
 
 module.exports = {
-  fromDisplayText: env.MAIL_FROM_NAME || '小宝', // 收件箱展示的来件人名字
-  fromDisplaySubText: env.MAIL_SUBJECT || '每日请安😘', // 收件箱展示的次级标题
+  fromDisplayText: env.MAIL_FROM_NAME || '皇上', // 收件箱展示的来件人名字
+  fromDisplaySubText: env.MAIL_SUBJECT || '每日请安😘❤❤❤', // 收件箱展示的次级标题
   user: env.MAIL_USER, // 发送者邮箱
   pass: env.MAIL_PASS, // 发送者邮箱SMTP协议密码（授权码）
   to: recipients[0].to, // 兼容旧用法：第一个收件人
@@ -172,10 +172,10 @@ module.exports = {
   tianXingKey: env.TIANXING_KEY, // 天行数据的key
   startDay: env.START_DAY || '2020-01-01', // 在一起的日期（真实日期请在 .env / Secrets 里配置）
   city: env.MAIL_CITY || '', // 默认的「我」城市名；留空则自动按 LocationID 反查
-  signature: env.MAIL_SIGNATURE || '爱你的小宝', // 邮件结尾落款（不含「——」）
+  signature: env.MAIL_SIGNATURE || '爱你的皇上', // 邮件结尾落款（不含「——」）
   taLocation: defaultTaLoction, // 默认的「TA」LocationID
   taCity: defaultTaCity, // 默认的「TA」城市名
-  loveName: env.MAIL_LOVE_NAME || '宝贝', // 土味情话里 XXX 占位符的替换词
+  loveName: env.MAIL_LOVE_NAME || '爱妃', // 土味情话里 XXX 占位符的替换词
   // 卡片配色：留空则按天数每天轮换一种马卡龙色；填主题名可固定（如 薄荷绿）
   themeName: env.MAIL_THEME || '',
 };

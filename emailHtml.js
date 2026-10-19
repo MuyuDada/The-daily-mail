@@ -85,6 +85,23 @@ function fn(c) {
     ? `<p style="margin-top:18px;color:${t.accentDark};font-weight:bold;">🍀 生活指数</p>${lifeLines}`
     : '';
 
+  // 黄历（纯文字版，只保留宜忌和几项关键信息）
+  const h = content.huangli;
+  const huangliBlock = h
+    ? `<p style="margin-top:18px;color:${t.accentDark};font-weight:bold;">📅 今日黄历</p>
+        <p>${esc(h.solarText)} ${esc(h.week)} · 农历${esc(h.lunarMonthDay)}${
+        h.jieqi ? ` · ${esc(h.jieqi)}` : ''
+      }</p>
+        <p style="color:${t.muted};font-size:13px;">${esc(h.ganzhi)} · ${esc(
+        h.zodiac
+      )}年</p>
+        <p style="color:#37714f;">✅ 宜　${esc(h.yi.join(' '))}</p>
+        <p style="color:#8f4141;">⛔ 忌　${esc(h.ji.join(' '))}</p>
+        <p style="color:${t.body};font-size:13px;">${esc(
+        [h.chongsha, h.wuxing, h.zhishen, h.jianchu].filter(Boolean).join(' · ')
+      )}</p>`
+    : '';
+
   return `<!DOCTYPE html>
   <html lang="en">
     <head>
@@ -94,11 +111,12 @@ function fn(c) {
     </head>
     <body style="font-family:'Microsoft YaHei','PingFang SC',sans-serif;">
       <div>
-        <p>宝贝你好呀🥰</p>
+        <p>皇后娘娘万福金安👑</p>
         <p>今天是我们认识的第${esc(content.days)}天💞</p>
         <p style="margin-top:18px;color:${t.accentDark};font-weight:bold;">🌤️ 今日天气</p>
         ${wxRow}
         ${lifeBlock}
+        ${huangliBlock}
         ${loveBlock}
         <p>——${esc(content.signature)}</p>
         <p style="color:${t.dateMuted};font-size:13px;">${esc(content.dateText)}</p>

@@ -149,6 +149,7 @@ function buildContent({
   signature,
   dateText,
   themeName,
+  huangli,
 }) {
   const weatherDataDaily = (weatherData && weatherData.daily) || [];
   const daily = (lifeData && lifeData.daily) || [];
@@ -190,6 +191,7 @@ function buildContent({
     icon: weatherEmoji(today.iconDay),
     ta,
     lifeItems,
+    huangli: huangli || null,
     loveWord: loveWord || '',
     signature: signature || '',
     theme,
