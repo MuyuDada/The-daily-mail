@@ -6,7 +6,7 @@ const timezone = require('dayjs/plugin/timezone');
 const sendEmail = require('./sendEmail');
 const emailHtml = require('./emailHtml');
 const { buildContent } = require('./content');
-const { cardHtml } = require('./cardHtml');
+const { renderLayout } = require('./layouts');
 const { renderHtmlToPng } = require('./render');
 const { readLastSent, writeLastSent } = require('./sentState');
 const { getHuangli } = require('./huangli');
@@ -28,6 +28,7 @@ const {
   signature,
   loveName,
   themeName,
+  layout,
 } = require('./config');
 
 const TZ = 'Asia/Shanghai';
@@ -222,10 +223,13 @@ async function init() {
         });
 
         // 生成卡片图；失败就退回纯文字邮件，保证每天都有邮件
+        // 版式由 MAIL_LAYOUT 决定：留空则按天数每天自动换一种（见 layouts.js）
+        const picked = renderLayout(layout, content);
+        const htmlPage = picked.html;
         let htmlStr;
         let attachments;
         try {
-          const png = await renderHtmlToPng(cardHtml(content), {
+          const png = await renderHtmlToPng(htmlPage, {
             width: 720,
             scale: 2,
             format: 'jpeg',
@@ -257,7 +261,7 @@ async function init() {
 
         okCount += 1;
         console.log(
-          `[每日提醒] 已发送至 ${person.to}，今天是在一起的第 ${lovingDays} 天`
+          `[每日提醒] 已发送至 ${person.to}，今天是在一起的第 ${lovingDays} 天（版式 ${picked.name}）`
         );
       } catch (e) {
         // 单个收件人失败不影响其他人

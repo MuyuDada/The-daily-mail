@@ -38,6 +38,9 @@ function findBrowser() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 等网页字体下载的上限。CDN 慢/挂掉时不能无限等，超时就按现有字体截图。
+const FONT_WAIT_MS = 8000;
+
 async function waitForCdp(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -335,6 +338,43 @@ async function renderHtmlToPng(html, opts = {}) {
       url: 'file:///' + htmlFile.replace(/\\/g, '/'),
     });
     await sleep(900); // 等字体与布局稳定
+
+    // 网页字体（如霞鹜文楷）是按 unicode-range 分片异步下载的，
+    // 光靠 sleep 不可靠：网络慢一点就会截到「回退字体」的图。
+    // 这里主动等 CSS 字体全部 load 完，再额外扫一遍页面里用到的字体族。
+    // 注意要加超时：CDN 不通时 fonts.load() 可能挂很久，绝不能拖住发信。
+    try {
+      await Promise.race([
+        cdp('Runtime.evaluate', {
+          expression: `(async () => {
+          const fams = new Set();
+          document.querySelectorAll('*').forEach((el) => {
+            const f = getComputedStyle(el).fontFamily || '';
+            f.split(',').forEach((x) => {
+              const n = x.trim().replace(/^["']|["']$/g, '');
+              if (n) fams.add(n);
+            });
+          });
+          const jobs = [];
+          fams.forEach((f) => {
+            // 常见系统兜底字体不查，省时间
+            if (/serif|sans-serif|monospace|cursive|fantasy|system-ui/i.test(f)) return;
+            jobs.push(document.fonts.load('16px "' + f + '"').catch(() => {}));
+          });
+          await Promise.all(jobs);
+          await document.fonts.ready;
+          return true;
+        })()`,
+          awaitPromise: true,
+          returnByValue: true,
+        }),
+        sleep(FONT_WAIT_MS).then(() => {
+          throw new Error('字体等待超时');
+        }),
+      ]);
+    } catch (e) {
+      // 字体等待失败或超时都不致命：继续用已有字体截图
+    }
 
     const { result } = await cdp('Runtime.evaluate', {
       expression:

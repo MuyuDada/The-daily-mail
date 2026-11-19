@@ -13,8 +13,9 @@
 //   START_DAY=2020-01-01
 //   WEATHER_LOCATION_TA=101020100   # 默认「TA」城市 LocationID，填 off 就整块不显示
 //   MAIL_CITY_TA=上海                # 可选：默认「TA」城市名
-//   MAIL_LOVE_NAME=宝贝              # 可选：土味情话里 XXX 占位符的替换词
+//   MAIL_LOVE_NAME=爱妃              # 可选：土味情话里 XXX 占位符的替换词
 //   MAIL_THEME=                     # 可选：固定卡片配色（12 套，见 themes.js）；留空则每天轮换
+//   MAIL_LAYOUT=                    # 可选：版式，留空则每天自动换（7 种）；也可填 card / letter / poster / ticket / diary / minimal / magazine 固定一种
 //
 // 收件人（MAIL_TO）：可以写多个，用逗号或分号隔开，就会分别单独发送（互相看不到对方地址）。
 // 每人一条，格式是 邮箱|我的城市名|我的LocationID|TA的城市名|TA的LocationID，后面的段都可以省略：
@@ -178,4 +179,7 @@ module.exports = {
   loveName: env.MAIL_LOVE_NAME || '爱妃', // 土味情话里 XXX 占位符的替换词
   // 卡片配色：留空则按天数每天轮换一种马卡龙色；填主题名可固定（如 薄荷绿）
   themeName: env.MAIL_THEME || '',
+  // 版式：留空 = 每天自动换一种（7 种，详见 layouts.js）
+  // 也可以填死一种：card / letter / poster / ticket / diary / minimal / magazine
+  layout: (env.MAIL_LAYOUT || '').trim().toLowerCase(),
 };

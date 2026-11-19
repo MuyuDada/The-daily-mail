@@ -57,21 +57,66 @@ MAIL_TO=you@example.com|北京|101010100;ta@example.com|上海|101020100
 | `MAIL_SIGNATURE` | `爱你的皇上` | 落款 |
 | `MAIL_LOVE_NAME` | `爱妃` | 土味情话里 `XXX` 占位符的替换词 |
 | `MAIL_THEME` | 每天轮换 | 固定卡片配色，可选下面 12 个主题名；留空则按天数每天换一种 |
+| `MAIL_LAYOUT` | 每天轮换 | 固定版式，可选 `card` / `letter` / `poster` / `ticket` / `diary` / `minimal` / `magazine` / `edict` / `memorial`，也认中文名（「圣旨」「奏章」等）；留空则按天数每天换一种 |
 
 > **怎么查 LocationID**：访问
 > `https://geoapi.qweather.com/v2/city/lookup?key=你的key&location=城市名`
 > 返回里的 `id` 字段就是。填中文城市名会直接报 HTTP 400。
 
+## 版式（每天换一种）
+
+同一份内容有 9 种完全不同的排法，**默认按天数每天自动轮换**，相邻两天一定不一样
+（确定性计算，同一天结果恒定，用 `MAIL_LAYOUT` 可固定一种）：
+
+| 版式 | 长相 |
+| --- | --- |
+| `card` | 温柔马卡龙彩色卡片，圆角色块，12 套配色 |
+| `letter` | 米色信笺 / 情书，格线纸、邮票、邮戳、火漆印、手写体（霞鹜文楷） |
+| `poster` | 海报，超大天数数字，两城天气做成大卡片 |
+| `ticket` | 登机牌 / 电影票根，左侧深色存根、齿孔撕线、条形码 |
+| `diary` | 日记本，横格纸、装订孔、红色页边线、手写体（霞鹜文楷） |
+| `minimal` | 极简，全白留白、细线、大字距、英文小标签 |
+| `magazine` | 杂志，报头刊名、期号、双栏正文、红黑配色 |
+| `edict` | 圣旨，明黄绫锦、朱红卷轴、双龙纹、「奉天承运 皇帝诏曰」、朱印「皇帝之宝」、手写体（霞鹜文楷） |
+| `memorial` | 奏章（请安折），米色折子、红丝栏、骑缝「奏」字、「皇后娘娘圣鉴」、条陈天时/起居/吉凶/心迹、手写体（霞鹜文楷） |
+
+```
+MAIL_LAYOUT=            # 留空 = 每天自动换（推荐）
+MAIL_LAYOUT=letter      # 固定用信笺版
+MAIL_LAYOUT=圣旨        # 中文名也认
+```
+
 ## 卡片图是怎么生成的
 
 用本机 Chrome 的**无头模式 + DevTools 协议**整页截图，纯 Node 实现，不依赖 puppeteer：
 
-- `content.js` —— 把接口数据整理成结构化内容（邮件与图片共用，保证两边一致）
+- `content.js` —— 把接口数据整理成结构化内容（所有版式共用，保证数据一致）
 - `themes.js` —— 12 套马卡龙配色，按天数每天轮换一种（相邻两天不重样）
-- `cardHtml.js` —— 卡片模板，颜色全部取自主题
-- `huangli.js` —— 黄历适配层，把本地万年历数据整理成卡片需要的字段
+- `layouts.js` —— 9 种版式 + 按天数轮换的逻辑，统一入口 `renderLayout()`
+- `layoutData.js` —— 版式共用的数据整理（黄历解析、天气拆分等），让新版式不用重写一遍
+- `cardHtml.js` / `cardLetter.js` —— `card` / `letter` 两种版式
+- `huangli.js` —— 黄历适配层，把本地万年历数据整理成需要的字段
 - `render.js` —— 启动 Chrome、量高度、整页截图
 - `emailHtml.js` —— 纯文字兜底模板
+
+**想加一种新版式**：在 `layouts.js` 里写一个函数、往 `LAYOUTS` 数组里加一行即可，
+轮换会自动带上它（数据用 `prepare(content)` 拿）。
+
+### 手写风格的字体
+
+`letter`、`diary`、`edict`、`memorial` 这几种手写感强的版式用的是
+[霞鹜文楷](https://github.com/lxgw/LxgwWenKai)（开源免费，SIL Open Font License），
+从 jsDelivr CDN 加载：
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.6.0/style.css" />
+```
+
+它的 CSS 把字体切成上百个 `unicode-range` 子集，浏览器只下载页面里真正用到的那些，
+所以几 MB 的字体实际只拉几百 KB，CI 里也跑得动。
+
+`render.js` 截图前会主动等 `document.fonts.ready`，避免截到「还没换上手写体」的中间态；
+这个等待有 **8 秒上限**（`FONT_WAIT_MS`），CDN 不通时会直接用系统楷体渲染，不会卡住发信。
 
 配色（`MAIL_THEME` 可固定一种，留空则每天换）：
 
