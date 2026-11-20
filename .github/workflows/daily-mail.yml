@@ -60,7 +60,7 @@ jobs:
           # 卡片配色：不配则按天数每天换一种马卡龙色
           MAIL_THEME: ${{ secrets.MAIL_THEME }}
           # 调试用：设为 1 可以无视「今天已发过」的标记强制重发一次
-          FORCE_SEND: 1
+          FORCE_SEND: ${{ vars.FORCE_SEND }}
         run: npm ci && npm run server
       # 把「今天已发送」的标记提交回仓库，供下一档 cron 判断要不要跳过。
       # 顺带让仓库每天都有一次提交，避免 public 仓库 60 天无活动被自动禁用定时任务。
